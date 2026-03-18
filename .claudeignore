@@ -1,0 +1,11 @@
+# ── Playwright MCP session data (screenshots and logs, not source code) ───────
+.playwright-mcp/
+
+# ── Node dependencies ─────────────────────────────────────────────────────────
+node_modules/
+
+# ── Cloudflare Worker deps ────────────────────────────────────────────────────
+worker/node_modules/
+
+# ── macOS metadata (binary, not useful to read) ───────────────────────────────
+.DS_Store

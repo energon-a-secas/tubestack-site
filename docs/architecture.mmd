@@ -1,0 +1,39 @@
+graph TB
+    subgraph Browser
+        HTML[index.html]
+        CSS[css/style.css]
+        JS[js/*.js modules]
+    end
+
+    subgraph "Convex Backend"
+        AUTH[auth.ts]
+        CH[channels.ts]
+        UC[userChannels.ts]
+        COL[collections.ts]
+        FOL[follows.ts]
+        REC[recommendations.ts]
+        DISC[discovery.ts]
+        DB[(Convex DB)]
+    end
+
+    subgraph "Cloudflare Worker"
+        PROXY[worker/src/index.js]
+        YT[YouTube Data API v3]
+    end
+
+    JS -->|ConvexHttpClient| AUTH
+    JS -->|ConvexHttpClient| CH
+    JS -->|ConvexHttpClient| UC
+    JS -->|ConvexHttpClient| COL
+    JS -->|ConvexHttpClient| FOL
+    JS -->|ConvexHttpClient| REC
+    JS -->|ConvexHttpClient| DISC
+    AUTH --> DB
+    CH --> DB
+    UC --> DB
+    COL --> DB
+    FOL --> DB
+    REC --> DB
+    DISC --> DB
+    JS -->|POST /search, /channel| PROXY
+    PROXY -->|API key hidden| YT

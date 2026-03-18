@@ -1,0 +1,7 @@
+{
+  "name": "tubestack-site",
+  "private": true,
+  "dependencies": {
+    "convex": "^1.21.0"
+  }
+}

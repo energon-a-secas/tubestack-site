@@ -1,0 +1,6 @@
+name = "tubestack-api"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+# After first deploy, add secrets via CLI:
+#   npx wrangler secret put YOUTUBE_API_KEY

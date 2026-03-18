@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="no-referrer">
+  <title>TubeStack | YouTube Channel Discovery for Engineers</title>
+  <meta name="description" content="Curate your favorite YouTube channels, browse what other engineers watch, and discover new content through shared interests and match scores">
+  <meta property="og:title" content="TubeStack — YouTube Channel Discovery for Engineers">
+  <meta property="og:description" content="Curate your favorite YouTube channels, browse what other engineers watch, and discover new content through match scores">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://tubestack.neorgon.com/">
+  <meta property="og:site_name" content="Neorgon">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="TubeStack — YouTube Channel Discovery for Engineers">
+  <meta name="twitter:description" content="Curate your favorite YouTube channels and discover new content through match scores">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://tubestack.neorgon.com/">
+  <meta property="og:locale" content="en_US">
+  <meta name="theme-color" content="#040714">
+  <!-- og:image: uncomment when social preview image is ready (1200x630 PNG)
+  <meta property="og:image" content="https://tubestack.neorgon.com/og-preview.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630"> -->
+  <link rel="icon" type="image/x-icon" href="https://pub-b597cd281a384f98a47e1f043a6c4160.r2.dev/v1.0.0/favicon.ico" />
+  <link rel="stylesheet" href="css/style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "TubeStack",
+    "description": "YouTube channel discovery platform for engineers — curate stacks, browse peers, find channels through match scores",
+    "url": "https://tubestack.neorgon.com/",
+    "applicationCategory": "SocialNetworkingApplication",
+    "operatingSystem": "Any",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "Neorgon", "url": "https://neorgon.com/" }
+  }
+  </script>
+</head>
+<body>
+
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="header-bar">
+    <div class="header-logo">
+      <a href="https://ehq.cl/" target="_blank" rel="noopener noreferrer">
+        <img src="https://pub-b597cd281a384f98a47e1f043a6c4160.r2.dev/v1.0.0/energon-classic-logo.png" class="header-logo-img" alt="Logo">
+      </a>
+      <div>
+        <h1>TubeStack</h1>
+        <div class="header-subtitle">YouTube channels engineers watch</div>
+      </div>
+    </div>
+
+    <nav>
+      <button class="nav-link active" data-view="feed">Feed</button>
+      <button class="nav-link" data-view="explore">Explore</button>
+      <button class="nav-link" data-view="stack">My Stack</button>
+      <button class="auth-toggle" id="authToggle" aria-label="Account">
+        <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <path d="M7.5 6.5C7.5 8.981 9.519 11 12 11s4.5-2.019 4.5-4.5S14.481 2 12 2 7.5 4.019 7.5 6.5zM20 21h1v-1c0-3.859-3.141-7-7-7h-4c-3.86 0-7 3.141-7 7v1h17z"/>
+        </svg>
+        <span class="rec-badge" id="recBadge" hidden></span>
+      </button>
+      <a class="header-home" href="https://neorgon.com/" title="neorgon.com" aria-label="Neorgon home" style="margin-left:5px">
+        <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+        </svg>
+      </a>
+    </nav>
+  </header>
+
+  <div class="auth-panel" id="authPanel">
+    <div class="auth-panel-inner">
+      <div id="authGate">
+        <div class="auth-tabs">
+          <button class="auth-tab active" data-tab="login">Log In</button>
+          <button class="auth-tab" data-tab="register">Register</button>
+        </div>
+        <div class="auth-form" id="authLoginForm">
+          <input type="text" id="authLoginUser" placeholder="Username" autocomplete="username" maxlength="20">
+          <input type="password" id="authLoginPass" placeholder="Password" autocomplete="current-password">
+          <button class="auth-submit" id="authLoginBtn">Log In</button>
+        </div>
+        <div class="auth-form" id="authRegisterForm" hidden>
+          <input type="text" id="authRegUser" placeholder="Choose a username" autocomplete="username" maxlength="20">
+          <input type="password" id="authRegPass" placeholder="Choose a password" autocomplete="new-password">
+          <input type="text" id="authRegBio" placeholder="Short bio (optional)" maxlength="100">
+          <button class="auth-submit" id="authRegBtn">Register</button>
+        </div>
+      </div>
+      <div id="authUser" hidden>
+        <span class="auth-username" id="authUsername"></span>
+        <button class="auth-logout" id="authLogout">Log out</button>
+      </div>
+    </div>
+  </div>
+  <div class="auth-divider"></div>
+
+  <main id="main">
+    <div class="container" id="app"></div>
+  </main>
+
+  <!-- Search overlay -->
+  <div class="search-overlay" id="searchOverlay" hidden>
+    <div class="search-panel">
+      <div class="search-header">
+        <input type="text" id="searchInput" placeholder="Search YouTube channels..." autocomplete="off">
+        <button class="search-close" id="searchClose">&times;</button>
+      </div>
+      <div class="search-results" id="searchResults"></div>
+    </div>
+  </div>
+
+  <!-- Recommend overlay -->
+  <div class="search-overlay" id="recommendOverlay" hidden>
+    <div class="search-panel recommend-panel">
+      <div class="search-header">
+        <h3 style="flex:1; font-size:1.1em;">Recommend Channel</h3>
+        <button class="search-close" id="recommendClose">&times;</button>
+      </div>
+      <div class="recommend-body" id="recommendBody"></div>
+    </div>
+  </div>
+
+  <footer class="info-footer">
+    Part of <a class="footer-link" href="https://neorgon.com/">Neorgon</a>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# ── macOS ─────────────────────────────────────────────────────────────────────
+.DS_Store
+
+# ── Playwright MCP (Claude Code browser automation — screenshots, logs) ───────
+.playwright-mcp/
+
+# ── Node (local tooling only) ────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+
+# ── Secrets — never commit ────────────────────────────────────────────────────
+.env
+.env.*
+
+# ── Cloudflare Worker ─────────────────────────────────────────────────────────
+worker/node_modules/
+worker/.wrangler/
