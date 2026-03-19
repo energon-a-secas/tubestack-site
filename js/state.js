@@ -25,6 +25,8 @@ export const api = {
     getByYoutubeId: "channels:getByYoutubeId",
     get: "channels:get",
     refreshThumbnail: "channels:refreshThumbnail",
+    needsRefresh: "channels:needsRefresh",
+    bulkImport: "channels:bulkImport",
   },
   userChannels: {
     add: "userChannels:add",
@@ -57,6 +59,13 @@ export const api = {
     listForUser: "recommendations:listForUser",
     markSeen: "recommendations:markSeen",
     unseenCount: "recommendations:unseenCount",
+  },
+  highlights: {
+    addHighlight: "highlights:addHighlight",
+    getByChannel: "highlights:getByChannel",
+    vote: "highlights:vote",
+    getUserVote: "highlights:getUserVote",
+    removeHighlight: "highlights:removeHighlight",
   },
   discovery: {
     trending: "discovery:trending",
@@ -117,6 +126,9 @@ export const state = {
   collectionDetail: null,
   searchResults: [],
   loading: false,
+  sortBy: 'date',         // 'date' | 'subscribers' | 'name'
+  editMode: false,        // Edit mode for My Stack
+  highlights: {},         // channelId -> highlights[] mapping
 };
 
 // ── Categories ───────────────────────────────────────────────────────

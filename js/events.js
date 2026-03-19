@@ -1,9 +1,9 @@
 // ── Event handlers ───────────────────────────────────────────
 import { state, getLoggedInUser } from './state.js';
-import { renderView, updateAuthUI, renderSearchResults, renderCategoryPicker, renderTagEditor, renderCollectionPicker, renderCreateCollectionModal, renderEditCollectionModal } from './render.js';
-import { doRegister, doLogin, doLogout, addChannelToStack, removeFromStack, updateChannelTags, createCollection, updateCollection, deleteCollection, addChannelToCollection, removeChannelFromCollection, refreshChannelImage, followUser, unfollowUser, sendRecommendation, markRecSeen, loadMyStack, loadFeed, loadExplore, loadUserProfile, loadCollection, checkFollowing, getMatchScore } from './data.js';
+import { renderView, updateAuthUI, renderSearchResults, renderCategoryPicker, renderTagEditor, renderCollectionPicker, renderCreateCollectionModal, renderEditCollectionModal, renderHighlightsModal, renderHighlightCard, renderBulkImportModal, renderBulkImportResults } from './render.js';
+import { doRegister, doLogin, doLogout, addChannelToStack, removeFromStack, updateChannelTags, createCollection, updateCollection, deleteCollection, addChannelToCollection, removeChannelFromCollection, refreshChannelImage, followUser, unfollowUser, sendRecommendation, markRecSeen, loadMyStack, loadFeed, loadExplore, loadUserProfile, loadCollection, checkFollowing, getMatchScore, loadChannelHighlights, voteOnHighlight, getUserHighlightVote, bulkImportChannels, addHighlightToChannel } from './data.js';
 import { searchChannels } from './youtube.js';
-import { $, showToast, debounce } from './utils.js';
+import { $, showToast, debounce, escAttr } from './utils.js';
 
 // ── Hash router ──────────────────────────────────────────────
 function parseHash() {
@@ -163,6 +163,64 @@ export function bindEvents() {
     searchInput.addEventListener('input', (e) => doSearch(e.target.value));
   }
 
+  // Collection image file input
+  document.addEventListener('change', (e) => {
+    if (e.target.id === 'collectionImageFile') {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        showToast('Please select an image file');
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('Image must be smaller than 5MB');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const preview = document.querySelector('.upload-preview');
+        const img = preview?.querySelector('img');
+        if (img) {
+          img.src = ev.target.result;
+          preview.style.display = 'block';
+          document.querySelector('.upload-prompt').style.display = 'none';
+          // Clear the URL input since we're using file
+          const urlInput = document.getElementById('collectionImageUrl');
+          if (urlInput) urlInput.value = '';
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  // Collection image drop zone click
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('[data-drop-zone]') && !e.target.closest('button')) {
+      const fileInput = document.getElementById('collectionImageFile');
+      if (fileInput) fileInput.click();
+    }
+  });
+
+  // Collection image URL input
+  const imageUrlInput = document.getElementById('collectionImageUrl');
+  if (imageUrlInput) {
+    imageUrlInput.addEventListener('input', (e) => {
+      const url = e.target.value.trim();
+      if (url) {
+        // Clear the file preview if URL is entered
+        const preview = document.querySelector('.upload-preview');
+        const prompt = document.querySelector('.upload-prompt');
+        const fileInput = document.getElementById('collectionImageFile');
+        if (preview) preview.style.display = 'none';
+        if (prompt) prompt.style.display = 'block';
+        if (fileInput) fileInput.value = '';
+      }
+    });
+  }
+
   // Recommend overlay
   const recClose = $('recommendClose');
   const recOverlay = $('recommendOverlay');
@@ -295,13 +353,32 @@ async function handleGlobalClick(e) {
     return;
   }
 
-  // Confirm create collection
+  // Toggle edit mode
+  if (target.id === 'toggleEditModeBtn' || target.closest('#toggleEditModeBtn')) {
+    state.editMode = !state.editMode;
+    renderView();
+    return;
+  }
+
+  // Confirm create collection (with image support)
   if (target.id === 'confirmCreateCol' || target.closest('#confirmCreateCol')) {
     const name = document.getElementById('newColName')?.value?.trim();
     if (!name) return showToast('Enter a name');
+
     const desc = document.getElementById('newColDesc')?.value?.trim() || '';
+
+    // Get image data
+    let imageUrl = '';
+    const previewImg = document.querySelector('.upload-preview img');
+    if (previewImg && previewImg.src) {
+      imageUrl = previewImg.src; // Base64 data URL from drag & drop
+    } else {
+      // Try URL input
+      imageUrl = document.getElementById('collectionImageUrl')?.value?.trim() || '';
+    }
+
     document.querySelector('[data-create-collection-modal]')?.remove();
-    const res = await createCollection(name, desc, []);
+    const res = await createCollection(name, desc, [], imageUrl);
     if (res?.ok) {
       showToast('Collection created');
       await loadMyStack();
@@ -319,6 +396,19 @@ async function handleGlobalClick(e) {
     const html = renderCollectionPicker(channelId);
     if (!html) return showToast('No collections available');
     document.body.insertAdjacentHTML('beforeend', html);
+    return;
+  }
+
+  // Handle collection image file selection
+  if (target.id === 'collectionImageFile') {
+    // File input change - will be handled by change event
+    return;
+  }
+
+  // Handle image URL input
+  const imageUrlInput = target.closest('#collectionImageUrl');
+  if (imageUrlInput) {
+    // Just let the user type, no immediate action
     return;
   }
 
@@ -397,6 +487,72 @@ async function handleGlobalClick(e) {
     const img = editCol.dataset.colImg || '';
     document.body.insertAdjacentHTML('beforeend', renderEditCollectionModal(id, name, desc, img));
     document.getElementById('editColName')?.focus();
+
+    // Handle image file upload
+    const fileInput = document.getElementById('editColImgFile');
+    const urlInput = document.getElementById('editColImg');
+    const previewContainer = document.getElementById('collectionImagePreviewContainer');
+    const clearBtn = document.getElementById('clearCollectionImg');
+
+    if (fileInput) {
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file && file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            // Update the URL input with base64 data
+            urlInput.value = event.target.result;
+
+            // Show preview
+            let previewImg = document.getElementById('collectionImgPreview');
+            if (!previewImg) {
+              previewImg = document.createElement('img');
+              previewImg.id = 'collectionImgPreview';
+              previewImg.style.width = '100%';
+              previewImg.style.maxHeight = '120px';
+              previewImg.style.objectFit = 'cover';
+              previewImg.style.borderRadius = '6px';
+              previewImg.style.marginTop = '8px';
+              previewImg.setAttribute('referrerpolicy', 'no-referrer');
+              previewContainer.appendChild(previewImg);
+            }
+            previewImg.src = event.target.result;
+
+            // Show clear button if not already there
+            let clearButton = document.getElementById('clearCollectionImg');
+            if (!clearButton) {
+              clearButton = document.createElement('button');
+              clearButton.id = 'clearCollectionImg';
+              clearButton.type = 'button';
+              clearButton.className = 'btn btn-sm btn-ghost';
+              clearButton.style.marginTop = '4px';
+              clearButton.style.fontSize = '0.8rem';
+              clearButton.textContent = 'Remove Image';
+              clearButton.addEventListener('click', () => {
+                urlInput.value = '';
+                fileInput.value = '';
+                if (previewImg) previewImg.remove();
+                if (clearButton) clearButton.remove();
+              });
+              previewContainer.appendChild(clearButton);
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    }
+
+    // Handle clear image button click
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        urlInput.value = '';
+        fileInput.value = '';
+        const previewImg = document.getElementById('collectionImgPreview');
+        if (previewImg) previewImg.remove();
+        if (clearBtn) clearBtn.remove();
+      });
+    }
+
     return;
   }
 
@@ -475,6 +631,64 @@ async function handleGlobalClick(e) {
   // Explore filter
   const exploreSearch = $('exploreSearch');
   if (exploreSearch && target === exploreSearch) return;
+
+  // Sort channels
+  const sortBy = target.closest('#sortBy');
+  if (sortBy) {
+    state.sortBy = sortBy.value;
+    renderView();
+    return;
+  }
+
+  // Bulk import button
+  if (target.id === 'bulkImportBtn' || target.closest('#bulkImportBtn')) {
+    showBulkImportModal();
+    return;
+  }
+
+  // Open highlights modal
+  const highlightsBtn = target.closest('[data-highlights-modal]');
+  if (highlightsBtn) {
+    const channel = JSON.parse(highlightsBtn.dataset.highlightsModal);
+    await showHighlightsModal(channel);
+    return;
+  }
+
+  // Highlight vote
+  const voteBtn = target.closest('[data-highlight-vote]');
+  if (voteBtn) {
+    const highlightId = voteBtn.dataset.highlightVote;
+    const direction = parseInt(voteBtn.dataset.voteDir);
+    const result = await voteOnHighlight(highlightId, direction);
+    if (result?.success) {
+      showToast('Vote recorded!');
+      // Reload highlights to update UI
+      const listEl = document.querySelector('[data-highlights-list]');
+      if (listEl) {
+        const channelId = listEl.dataset.channelId;
+        loadChannelHighlights(channelId);
+      }
+    } else {
+      showToast(result?.error || 'Failed to vote');
+    }
+    return;
+  }
+
+  // Close highlights modal
+  if (target.closest('[data-highlights-close]') || target.closest('.highlights-modal-overlay')) {
+    closeHighlightsModal();
+    return;
+  }
+
+  // Open channel from card click (but not if clicking buttons/links/action bar)
+  const card = target.closest('.channel-card');
+  if (card && !target.closest('button, a, input, select, textarea, .channel-card-top a, .channel-actions-bar')) {
+    const channelData = card.dataset.openChannel ? JSON.parse(card.dataset.openChannel) : null;
+    if (channelData && channelData.youtubeChannelId) {
+      window.open(`https://www.youtube.com/channel/${encodeURIComponent(channelData.youtubeChannelId)}`, '_blank');
+    }
+    return;
+  }
 }
 
 // Explore filter input
@@ -496,6 +710,284 @@ document.addEventListener('input', (e) => {
     });
   }
 });
+
+// ── Bulk Import ───────────────────────────────────────────────
+function closeBulkImportModal() {
+  document.querySelector('[data-bulk-import]')?.remove();
+}
+
+function showBulkImportModal() {
+  const overlay = document.createElement('div');
+  overlay.innerHTML = renderBulkImportModal();
+  document.body.appendChild(overlay);
+
+  // Handle close
+  const closeBtn = overlay.querySelector('[data-cancel-bulk-import]');
+  if (closeBtn) closeBtn.addEventListener('click', closeBulkImportModal);
+
+  // Handle overlay click
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeBulkImportModal();
+  });
+
+  // Handle import
+  const importBtn = document.getElementById('confirmBulkImport');
+  if (importBtn) {
+    importBtn.addEventListener('click', async () => {
+      const input = document.getElementById('bulkImportUrls');
+      const urls = input?.value?.split('\n').filter(u => u.trim());
+
+      if (!urls || urls.length === 0) {
+        showToast('Please enter at least one channel URL');
+        return;
+      }
+
+      importBtn.disabled = true;
+      importBtn.textContent = 'Importing...';
+
+      try {
+        let result;
+        try {
+          result = await bulkImportChannels(urls);
+        } catch (error) {
+          showToast(error.message || 'Error importing channels');
+          importBtn.disabled = false;
+          importBtn.textContent = 'Import Channels';
+          return;
+        }
+
+        if (result?.imported !== undefined) {
+          const resultsHtml = renderBulkImportResults(result);
+          const resultsContainer = document.createElement('div');
+          resultsContainer.innerHTML = resultsHtml;
+          const inputParent = input.parentElement;
+          inputParent?.insertBefore(resultsContainer, document.querySelector('.bulk-import-actions'));
+
+          input.style.display = 'none';
+          document.querySelector('.bulk-import-disclaimer')?.remove();
+
+          // Update the import button to be "Done"
+          importBtn.textContent = 'Done';
+          importBtn.disabled = false;
+          importBtn.onclick = () => {
+            closeBulkImportModal();
+            loadMyStack().then(renderView);
+          };
+
+          showToast(`Imported ${result.imported} channels!`);
+        } else {
+          showToast(result?.error || 'Import failed');
+          importBtn.disabled = false;
+          importBtn.textContent = 'Import Channels';
+        }
+      } catch (e) {
+        showToast('Error during import');
+        importBtn.disabled = false;
+        importBtn.textContent = 'Import Channels';
+      }
+    });
+  }
+}
+
+// ── Highlight Sharing ────────────────────────────────────────
+function closeHighlightsModal() {
+  const overlay = document.querySelector('[data-highlights-overlay]');
+  if (overlay) overlay.remove();
+}
+
+async function showHighlightsModal(channel) {
+  const overlay = document.createElement('div');
+  overlay.innerHTML = renderHighlightsModal(channel);
+  document.body.appendChild(overlay);
+
+  // Load highlights
+  const channelId = channel._id || channel.channelId || channel.id;
+  const highlights = await loadChannelHighlights(channelId);
+  const user = getLoggedInUser();
+
+  const listEl = document.querySelector('[data-highlights-list]');
+  if (listEl) {
+    if (highlights.length === 0) {
+      const addButton = user ?
+        '<button class="btn btn-accent" id="addFirstHighlightBtn">+ Add First Highlight</button>' :
+        '<p class="text-muted">Log in to add highlights.</p>';
+      listEl.innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+          <p class="text-muted" style="margin-bottom: 16px;">No highlights yet. Be the first to share one!</p>
+          ${addButton}
+        </div>`;
+
+      // Handle add first highlight
+      const addBtn = document.getElementById('addFirstHighlightBtn');
+      if (addBtn) {
+        addBtn.addEventListener('click', () => {
+          showAddHighlightForm(channel);
+        });
+      }
+    } else {
+      // Get user's votes and render highlights
+      const highlightsHtml = await Promise.all(
+        highlights.map(async (highlight) => {
+          const vote = user ? await getUserHighlightVote(highlight._id) : 0;
+          return renderHighlightCard(highlight, vote);
+        })
+      );
+      listEl.innerHTML = highlightsHtml.join('');
+    }
+  }
+
+  // Handle close
+  const closeBtn = overlay.querySelector('[data-highlights-close]');
+  if (closeBtn) closeBtn.addEventListener('click', closeHighlightsModal);
+
+  // Handle overlay click
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeHighlightsModal();
+  });
+
+  // Handle add highlight button in footer
+  const addHighlightBtn = document.getElementById('addHighlightBtn');
+  if (addHighlightBtn) {
+    addHighlightBtn.addEventListener('click', () => {
+      showAddHighlightForm(channel);
+    });
+  }
+}
+
+async function showAddHighlightForm(channel) {
+  const modalBody = document.querySelector('[data-highlights-list]');
+  const footer = document.querySelector('.highlights-modal-footer');
+  if (!modalBody || !footer) return;
+
+  // Hide the Add Highlight button in footer while form is open
+  const addBtn = document.getElementById('addHighlightBtn');
+  if (addBtn) addBtn.style.display = 'none';
+
+  const formHtml = `
+    <div class="add-highlight-form" style="background: var(--surface-1); padding: 20px; border-radius: 8px; margin-bottom: 16px;">
+      <h4 style="margin-bottom: 12px;">Add New Highlight</h4>
+      <input type="text" id="highlightVideoId" placeholder="YouTube Video ID or URL" style="width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text-primary);">
+      <input type="text" id="highlightTitle" placeholder="Title (optional)" style="width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text-primary);">
+      <div style="margin-bottom: 12px;">
+        <label style="display: block; margin-bottom: 6px; font-size: var(--text-xs); color: var(--text-muted);">Custom Image (optional):</label>
+        <input type="file" id="highlightImageInput" accept="image/*" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text-primary);">
+        <img id="highlightImagePreview" style="display: none; max-width: 200px; max-height: 120px; margin-top: 8px; border-radius: 4px;">
+        <button type="button" id="clearHighlightImage" style="display: none; margin-top: 4px; font-size: var(--text-xs);" class="btn btn-sm btn-ghost">Remove Image</button>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-accent" id="submitHighlightBtn">Add Highlight</button>
+        <button class="btn btn-ghost" id="cancelHighlightBtn">Cancel</button>
+      </div>
+    </div>`;
+
+  modalBody.insertAdjacentHTML('afterbegin', formHtml);
+
+  // Handle image upload and preview
+  const imageInput = document.getElementById('highlightImageInput');
+  const imagePreview = document.getElementById('highlightImagePreview');
+  const clearImageBtn = document.getElementById('clearHighlightImage');
+
+  if (imageInput) {
+    imageInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          imagePreview.src = event.target.result;
+          imagePreview.style.display = 'block';
+          clearImageBtn.style.display = 'inline-block';
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  }
+
+  if (clearImageBtn) {
+    clearImageBtn.addEventListener('click', () => {
+      imageInput.value = '';
+      imagePreview.style.display = 'none';
+      clearImageBtn.style.display = 'none';
+    });
+  }
+
+  document.getElementById('highlightVideoId').focus();
+
+  // Handle form submission
+  document.getElementById('submitHighlightBtn').addEventListener('click', async () => {
+    const videoIdInput = document.getElementById('highlightVideoId');
+    const titleInput = document.getElementById('highlightTitle');
+
+    const videoUrl = videoIdInput.value.trim();
+    const title = titleInput.value.trim();
+
+    if (!videoUrl) {
+      showToast('Please enter a YouTube video ID or URL');
+      return;
+    }
+
+    // Extract video ID from URL if needed
+    let videoId = videoUrl;
+    if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
+      try {
+        const url = new URL(videoUrl);
+        if (url.hostname.includes('youtube.com')) {
+          videoId = url.searchParams.get('v') || url.pathname.split('/').pop() || videoUrl;
+        } else if (url.hostname.includes('youtu.be')) {
+          videoId = url.pathname.substring(1);
+        }
+      } catch (e) {
+        // If URL parsing fails, assume it's already a video ID
+      }
+    }
+
+    const user = getLoggedInUser();
+    if (!user) {
+      showToast('Please log in to add highlights');
+      return;
+    }
+
+    // Add highlight
+    const customImage = imagePreview.style.display !== 'none' ? imagePreview.src : null;
+    const result = await addHighlightToChannel(channel._id, videoId, title || 'Untitled Highlight', customImage);
+
+    if (result?.ok) {
+      showToast('Highlight added!');
+      // Close the form
+      document.querySelector('.add-highlight-form')?.remove();
+
+      // Show the Add Highlight button again
+      const addBtn = document.getElementById('addHighlightBtn');
+      if (addBtn) addBtn.style.display = '';
+
+      // Just refresh highlights list - never close modal automatically
+      const channelId = channel._id || channel.channelId || channel.id;
+      const highlights = await loadChannelHighlights(channelId);
+
+      // Re-render highlights in current modal
+      const listEl = document.querySelector('[data-highlights-list]');
+      if (listEl) {
+        const user = getLoggedInUser();
+        const highlightsHtml = await Promise.all(
+          highlights.map(async (highlight) => {
+            const vote = user ? await getUserHighlightVote(highlight._id) : 0;
+            return renderHighlightCard(highlight, vote);
+          })
+        );
+        listEl.innerHTML = highlightsHtml.join('');
+      }
+    } else {
+      showToast(result?.error || 'Failed to add highlight');
+    }
+  });
+
+  // Handle cancel
+  document.getElementById('cancelHighlightBtn').addEventListener('click', () => {
+    document.querySelector('.add-highlight-form')?.remove();
+    // Show the Add Highlight button again
+    const addBtn = document.getElementById('addHighlightBtn');
+    if (addBtn) addBtn.style.display = '';
+  });
+}
 
 async function showRecommendOverlay(channelId, channelName) {
   const user = getLoggedInUser();

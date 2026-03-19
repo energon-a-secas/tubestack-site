@@ -7,6 +7,8 @@ export function $(id) {
 
 export function escHtml(str) {
   if (str === null || str === undefined) return '';
+  // Don't escape data URLs - they contain base64 which should not be modified
+  if (String(str).startsWith('data:')) return String(str);
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

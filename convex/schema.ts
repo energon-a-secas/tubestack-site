@@ -21,6 +21,7 @@ export default defineSchema({
     youtubeCategory: v.optional(v.string()),
     addedBy: v.string(),
     createdAt: v.number(),
+    lastRefreshed: v.optional(v.number()),
   }).index("by_youtube_id", ["youtubeChannelId"]),
 
   userChannels: defineTable({
@@ -67,4 +68,25 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_recipient", ["toUserId"])
     .index("by_sender", ["fromUserId"]),
+
+  highlights: defineTable({
+    channelId: v.id("channels"),
+    youtubeVideoId: v.string(),
+    title: v.string(),
+    thumbnailUrl: v.string(),
+    sharedBy: v.id("users"),
+    sharedByUsername: v.string(),
+    createdAt: v.number(),
+  }).index("by_channel", ["channelId"])
+    .index("by_user", ["sharedBy"])
+    .index("by_channel_video", ["channelId", "youtubeVideoId"]),
+
+  highlightVotes: defineTable({
+    highlightId: v.id("highlights"),
+    userId: v.id("users"),
+    direction: v.number(), // +1 for upvote, -1 for downvote
+    createdAt: v.number(),
+  }).index("by_highlight", ["highlightId"])
+    .index("by_user", ["userId"])
+    .index("by_highlight_user", ["highlightId", "userId"]),
 });

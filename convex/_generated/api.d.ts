@@ -13,6 +13,7 @@ import type * as channels from "../channels.js";
 import type * as collections from "../collections.js";
 import type * as discovery from "../discovery.js";
 import type * as follows from "../follows.js";
+import type * as highlights from "../highlights.js";
 import type * as recommendations from "../recommendations.js";
 import type * as userChannels from "../userChannels.js";
 
@@ -28,6 +29,7 @@ declare const fullApi: ApiFromModules<{
   collections: typeof collections;
   discovery: typeof discovery;
   follows: typeof follows;
+  highlights: typeof highlights;
   recommendations: typeof recommendations;
   userChannels: typeof userChannels;
 }>;
