@@ -1,7 +1,7 @@
 // ── Event handlers ───────────────────────────────────────────
 import { state, getLoggedInUser } from './state.js';
-import { renderView, updateAuthUI, renderSearchResults, renderCategoryPicker, renderTagEditor, renderCollectionPicker, renderCreateCollectionModal, renderEditCollectionModal, renderHighlightsModal, renderHighlightCard, renderBulkImportModal, renderBulkImportResults } from './render.js';
-import { doRegister, doLogin, doLogout, addChannelToStack, removeFromStack, updateChannelTags, createCollection, updateCollection, deleteCollection, addChannelToCollection, removeChannelFromCollection, refreshChannelImage, followUser, unfollowUser, sendRecommendation, markRecSeen, loadMyStack, loadFeed, loadExplore, loadUserProfile, loadCollection, checkFollowing, getMatchScore, loadChannelHighlights, voteOnHighlight, getUserHighlightVote, bulkImportChannels, addHighlightToChannel } from './data.js';
+import { renderView, updateAuthUI, renderSearchResults, renderCategoryPicker, renderTagEditor, renderCollectionPicker, renderCreateCollectionModal, renderEditCollectionModal, renderHighlightsModal, renderHighlightCard } from './render.js';
+import { doRegister, doLogin, doLogout, addChannelToStack, removeFromStack, updateChannelTags, createCollection, updateCollection, deleteCollection, addChannelToCollection, removeChannelFromCollection, refreshChannelImage, followUser, unfollowUser, sendRecommendation, markRecSeen, loadMyStack, loadFeed, loadExplore, loadUserProfile, loadCollection, checkFollowing, getMatchScore, loadChannelHighlights, voteOnHighlight, getUserHighlightVote, addHighlightToChannel, getFollowerCounts, lookupChannelByYoutubeId, updateProfile } from './data.js';
 import { searchChannels } from './youtube.js';
 import { $, showToast, debounce, escAttr } from './utils.js';
 
@@ -32,6 +32,12 @@ async function navigate() {
   if (state.view === 'user') {
     await loadUserProfile(state.viewParam);
     renderView();
+    // Load real follower count
+    if (state.profileUser) {
+      const counts = await getFollowerCounts(state.profileUser.id);
+      const countEl = document.getElementById('profileFollowerCount');
+      if (countEl) countEl.textContent = counts?.followers ?? 0;
+    }
     const user = getLoggedInUser();
     if (user && state.profileUser && user.id !== state.profileUser.id) {
       const score = await getMatchScore(state.profileUser.id);
@@ -72,12 +78,18 @@ export function bindEvents() {
     });
   });
 
-  // Auth toggle
+  // Auth toggle — navigate to own profile if logged in, else open auth panel
   const authToggle = $('authToggle');
   const authPanel = $('authPanel');
   if (authToggle && authPanel) {
     authToggle.addEventListener('click', () => {
-      authPanel.classList.toggle('open');
+      const user = getLoggedInUser();
+      if (user) {
+        authPanel.classList.remove('open');
+        location.hash = `#user=${user.username}`;
+      } else {
+        authPanel.classList.toggle('open');
+      }
     });
   }
 
@@ -180,14 +192,14 @@ export function bindEvents() {
       }
 
       const reader = new FileReader();
-      reader.onload = (ev) => {
+      reader.onload = async (ev) => {
+        const resized = await resizeImageToDataUrl(ev.target.result, 600, 300, 0.8);
         const preview = document.querySelector('.upload-preview');
         const img = preview?.querySelector('img');
-        if (img) {
-          img.src = ev.target.result;
+        if (img && resized) {
+          img.src = resized;
           preview.style.display = 'block';
           document.querySelector('.upload-prompt').style.display = 'none';
-          // Clear the URL input since we're using file
           const urlInput = document.getElementById('collectionImageUrl');
           if (urlInput) urlInput.value = '';
         }
@@ -232,6 +244,9 @@ export function bindEvents() {
   // Global click delegation
   document.addEventListener('click', handleGlobalClick);
 
+  // Keyboard navigation
+  document.addEventListener('keydown', handleKeyboard);
+
   // Enter key in auth forms
   $('authLoginPass')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') loginBtn?.click(); });
   $('authRegBio')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') regBtn?.click(); });
@@ -256,6 +271,26 @@ function closeSearch() {
 
 async function handleGlobalClick(e) {
   const target = e.target;
+
+  // Overflow menu toggle
+  const overflowToggle = target.closest('[data-overflow-toggle]');
+  if (overflowToggle) {
+    e.stopPropagation();
+    const wrapper = overflowToggle.closest('.overflow-menu-wrapper');
+    const menu = wrapper?.querySelector('.overflow-menu');
+    const wasOpen = menu?.classList.contains('open');
+    closeAllOverflowMenus();
+    if (!wasOpen && menu) {
+      menu.classList.add('open');
+      overflowToggle.setAttribute('aria-expanded', 'true');
+    }
+    return;
+  }
+
+  // Close overflow menus on any other click
+  if (!target.closest('.overflow-menu')) {
+    closeAllOverflowMenus();
+  }
 
   // Open search
   if (target.id === 'openSearchBtn' || target.closest('#openSearchBtn')) {
@@ -350,13 +385,6 @@ async function handleGlobalClick(e) {
   if (target.id === 'createCollectionBtn' || target.closest('#createCollectionBtn')) {
     document.body.insertAdjacentHTML('beforeend', renderCreateCollectionModal());
     document.getElementById('newColName')?.focus();
-    return;
-  }
-
-  // Toggle edit mode
-  if (target.id === 'toggleEditModeBtn' || target.closest('#toggleEditModeBtn')) {
-    state.editMode = !state.editMode;
-    renderView();
     return;
   }
 
@@ -484,8 +512,7 @@ async function handleGlobalClick(e) {
     const id = editCol.dataset.editCollection;
     const name = editCol.dataset.colName || '';
     const desc = editCol.dataset.colDesc || '';
-    const img = editCol.dataset.colImg || '';
-    document.body.insertAdjacentHTML('beforeend', renderEditCollectionModal(id, name, desc, img));
+    document.body.insertAdjacentHTML('beforeend', renderEditCollectionModal(id, name, desc, ''));
     document.getElementById('editColName')?.focus();
 
     // Handle image file upload
@@ -499,9 +526,11 @@ async function handleGlobalClick(e) {
         const file = e.target.files[0];
         if (file && file.type.startsWith('image/')) {
           const reader = new FileReader();
-          reader.onload = (event) => {
-            // Update the URL input with base64 data
-            urlInput.value = event.target.result;
+          reader.onload = async (event) => {
+            const resized = await resizeImageToDataUrl(event.target.result, 600, 300, 0.8);
+            if (!resized) { showToast('Could not process image'); return; }
+            // Update the URL input with resized data
+            urlInput.value = resized;
 
             // Show preview
             let previewImg = document.getElementById('collectionImgPreview');
@@ -516,7 +545,7 @@ async function handleGlobalClick(e) {
               previewImg.setAttribute('referrerpolicy', 'no-referrer');
               previewContainer.appendChild(previewImg);
             }
-            previewImg.src = event.target.result;
+            previewImg.src = resized;
 
             // Show clear button if not already there
             let clearButton = document.getElementById('clearCollectionImg');
@@ -608,6 +637,29 @@ async function handleGlobalClick(e) {
     return;
   }
 
+  // Save profile settings
+  const saveProfile = target.closest('[data-save-profile]');
+  if (saveProfile) {
+    const displayName = document.getElementById('profileDisplayName')?.value?.trim() || '';
+    const bio = document.getElementById('profileBio')?.value?.trim() || '';
+    const isPublic = document.getElementById('profileIsPublic')?.checked ?? true;
+    const res = await updateProfile(bio, displayName, isPublic);
+    if (res?.ok) {
+      showToast('Profile updated');
+      await loadUserProfile(state.viewParam);
+      renderView();
+      // Re-load follower count
+      if (state.profileUser) {
+        const counts = await getFollowerCounts(state.profileUser.id);
+        const countEl = document.getElementById('profileFollowerCount');
+        if (countEl) countEl.textContent = counts?.followers ?? 0;
+      }
+    } else {
+      showToast(res?.error || 'Failed to update');
+    }
+    return;
+  }
+
   // Recommend
   const recBtn = target.closest('[data-recommend-channel]');
   if (recBtn) {
@@ -640,12 +692,6 @@ async function handleGlobalClick(e) {
     return;
   }
 
-  // Bulk import button
-  if (target.id === 'bulkImportBtn' || target.closest('#bulkImportBtn')) {
-    showBulkImportModal();
-    return;
-  }
-
   // Open highlights modal
   const highlightsBtn = target.closest('[data-highlights-modal]');
   if (highlightsBtn) {
@@ -674,9 +720,14 @@ async function handleGlobalClick(e) {
     return;
   }
 
-  // Close highlights modal
-  if (target.closest('[data-highlights-close]') || target.closest('.highlights-modal-overlay')) {
+  // Close highlights modal — only the close button (backdrop handled by its own listener)
+  if (target.closest('[data-highlights-close]')) {
     closeHighlightsModal();
+    return;
+  }
+
+  // Stop global handler from interfering with highlights modal content
+  if (target.closest('.highlights-modal')) {
     return;
   }
 
@@ -696,8 +747,9 @@ document.addEventListener('input', (e) => {
   if (e.target.id === 'exploreSearch') {
     const val = e.target.value.toLowerCase();
     document.querySelectorAll('.user-card').forEach(card => {
-      const name = card.dataset.username?.toLowerCase() || '';
-      card.style.display = name.includes(val) ? '' : 'none';
+      const username = card.dataset.username?.toLowerCase() || '';
+      const displayName = card.querySelector('.user-name')?.textContent?.toLowerCase() || '';
+      card.style.display = (username.includes(val) || displayName.includes(val)) ? '' : 'none';
     });
   }
   // Category filter in tag editor/picker
@@ -711,88 +763,90 @@ document.addEventListener('input', (e) => {
   }
 });
 
-// ── Bulk Import ───────────────────────────────────────────────
-function closeBulkImportModal() {
-  document.querySelector('[data-bulk-import]')?.remove();
+// ── Overflow menus ────────────────────────────────────────────
+function closeAllOverflowMenus() {
+  document.querySelectorAll('.overflow-menu.open').forEach(m => {
+    m.classList.remove('open');
+    m.closest('.overflow-menu-wrapper')?.querySelector('[data-overflow-toggle]')?.setAttribute('aria-expanded', 'false');
+  });
 }
 
-function showBulkImportModal() {
-  const overlay = document.createElement('div');
-  overlay.innerHTML = renderBulkImportModal();
-  document.body.appendChild(overlay);
+// ── Keyboard navigation ──────────────────────────────────────
+const NAV_VIEWS = ['feed', 'explore', 'stack'];
 
-  // Handle close
-  const closeBtn = overlay.querySelector('[data-cancel-bulk-import]');
-  if (closeBtn) closeBtn.addEventListener('click', closeBulkImportModal);
+function handleKeyboard(e) {
+  const tag = e.target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
-  // Handle overlay click
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) closeBulkImportModal();
-  });
+  // Number keys to jump to tabs
+  if (e.key === '1') { location.hash = 'feed'; return; }
+  if (e.key === '2') { location.hash = 'explore'; return; }
+  if (e.key === '3') { location.hash = 'stack'; return; }
 
-  // Handle import
-  const importBtn = document.getElementById('confirmBulkImport');
-  if (importBtn) {
-    importBtn.addEventListener('click', async () => {
-      const input = document.getElementById('bulkImportUrls');
-      const urls = input?.value?.split('\n').filter(u => u.trim());
+  // Arrow keys to cycle tabs
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    const idx = NAV_VIEWS.indexOf(state.view);
+    if (idx === -1) return;
+    const next = e.key === 'ArrowRight'
+      ? NAV_VIEWS[(idx + 1) % NAV_VIEWS.length]
+      : NAV_VIEWS[(idx - 1 + NAV_VIEWS.length) % NAV_VIEWS.length];
+    location.hash = next;
+    return;
+  }
 
-      if (!urls || urls.length === 0) {
-        showToast('Please enter at least one channel URL');
+  // Escape — close overlays in priority order
+  if (e.key === 'Escape') {
+    if (document.querySelector('[data-highlights-overlay]')) { closeHighlightsModal(); return; }
+    if (document.querySelector('[data-tag-editor]')) { document.querySelector('[data-tag-editor]')?.remove(); return; }
+    if (!$('searchOverlay')?.hidden) { closeSearch(); return; }
+    if (!$('recommendOverlay')?.hidden) { $('recommendOverlay').hidden = true; return; }
+    const authPanel = $('authPanel');
+    if (authPanel?.classList.contains('open')) { authPanel.classList.remove('open'); return; }
+    closeAllOverflowMenus();
+  }
+}
+
+// ── Image resize helper ──────────────────────────────────────
+function resizeImageToDataUrl(dataUrl, maxWidth = 320, maxHeight = 180, quality = 0.6) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      const ratio = Math.min(maxWidth / width, maxHeight / height, 1);
+      width = Math.round(width * ratio);
+      height = Math.round(height * ratio);
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      let result = canvas.toDataURL('image/jpeg', quality);
+      // If still over 100KB, compress harder
+      if (result.length > 100_000) {
+        result = canvas.toDataURL('image/jpeg', 0.3);
+      }
+      // If STILL over 200KB, reject — too large for DB storage
+      if (result.length > 200_000) {
+        resolve(null);
         return;
       }
-
-      importBtn.disabled = true;
-      importBtn.textContent = 'Importing...';
-
-      try {
-        let result;
-        try {
-          result = await bulkImportChannels(urls);
-        } catch (error) {
-          showToast(error.message || 'Error importing channels');
-          importBtn.disabled = false;
-          importBtn.textContent = 'Import Channels';
-          return;
-        }
-
-        if (result?.imported !== undefined) {
-          const resultsHtml = renderBulkImportResults(result);
-          const resultsContainer = document.createElement('div');
-          resultsContainer.innerHTML = resultsHtml;
-          const inputParent = input.parentElement;
-          inputParent?.insertBefore(resultsContainer, document.querySelector('.bulk-import-actions'));
-
-          input.style.display = 'none';
-          document.querySelector('.bulk-import-disclaimer')?.remove();
-
-          // Update the import button to be "Done"
-          importBtn.textContent = 'Done';
-          importBtn.disabled = false;
-          importBtn.onclick = () => {
-            closeBulkImportModal();
-            loadMyStack().then(renderView);
-          };
-
-          showToast(`Imported ${result.imported} channels!`);
-        } else {
-          showToast(result?.error || 'Import failed');
-          importBtn.disabled = false;
-          importBtn.textContent = 'Import Channels';
-        }
-      } catch (e) {
-        showToast('Error during import');
-        importBtn.disabled = false;
-        importBtn.textContent = 'Import Channels';
-      }
-    });
-  }
+      resolve(result);
+    };
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
 }
 
 // ── Highlight Sharing ────────────────────────────────────────
 function closeHighlightsModal() {
   const overlay = document.querySelector('[data-highlights-overlay]');
-  if (overlay) overlay.remove();
+  if (overlay) {
+    // Remove the wrapper div parent if it's a bare container
+    const parent = overlay.parentElement;
+    overlay.remove();
+    if (parent && parent !== document.body && parent.children.length === 0) {
+      parent.remove();
+    }
+  }
 }
 
 async function showHighlightsModal(channel) {
@@ -800,8 +854,13 @@ async function showHighlightsModal(channel) {
   overlay.innerHTML = renderHighlightsModal(channel);
   document.body.appendChild(overlay);
 
-  // Load highlights
-  const channelId = channel._id || channel.channelId || channel.id;
+  // Load highlights — resolve Convex doc ID if needed
+  let channelId = channel._id || channel.channelId || channel.id;
+  if (!channelId && channel.youtubeChannelId) {
+    const doc = await lookupChannelByYoutubeId(channel.youtubeChannelId);
+    if (doc) channelId = doc._id;
+    else { showToast('Channel not found in database'); return; }
+  }
   const highlights = await loadChannelHighlights(channelId);
   const user = getLoggedInUser();
 
@@ -840,10 +899,13 @@ async function showHighlightsModal(channel) {
   const closeBtn = overlay.querySelector('[data-highlights-close]');
   if (closeBtn) closeBtn.addEventListener('click', closeHighlightsModal);
 
-  // Handle overlay click
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) closeHighlightsModal();
-  });
+  // Handle backdrop click (click on the overlay background, not the modal content)
+  const overlayBg = overlay.querySelector('.highlights-modal-overlay');
+  if (overlayBg) {
+    overlayBg.addEventListener('click', (e) => {
+      if (e.target === overlayBg) closeHighlightsModal();
+    });
+  }
 
   // Handle add highlight button in footer
   const addHighlightBtn = document.getElementById('addHighlightBtn');
@@ -891,11 +953,20 @@ async function showAddHighlightForm(channel) {
     imageInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
+        if (file.size > 5 * 1024 * 1024) {
+          showToast('Image must be under 5MB');
+          return;
+        }
         const reader = new FileReader();
-        reader.onload = (event) => {
-          imagePreview.src = event.target.result;
-          imagePreview.style.display = 'block';
-          clearImageBtn.style.display = 'inline-block';
+        reader.onload = async (event) => {
+          const resized = await resizeImageToDataUrl(event.target.result);
+          if (resized) {
+            imagePreview.src = resized;
+            imagePreview.style.display = 'block';
+            clearImageBtn.style.display = 'inline-block';
+          } else {
+            showToast('Could not process image');
+          }
         };
         reader.readAsDataURL(file);
       }
@@ -940,15 +1011,37 @@ async function showAddHighlightForm(channel) {
       }
     }
 
+    // Auto-fetch video title from YouTube oEmbed if title is empty
+    let resolvedTitle = title;
+    if (!resolvedTitle) {
+      try {
+        const oembed = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}&format=json`);
+        if (oembed.ok) {
+          const data = await oembed.json();
+          resolvedTitle = data.title || '';
+        }
+      } catch { /* fall through */ }
+    }
+    if (!resolvedTitle) resolvedTitle = 'Untitled Highlight';
+
     const user = getLoggedInUser();
     if (!user) {
       showToast('Please log in to add highlights');
       return;
     }
 
-    // Add highlight
-    const customImage = imagePreview.style.display !== 'none' ? imagePreview.src : null;
-    const result = await addHighlightToChannel(channel._id, videoId, title || 'Untitled Highlight', customImage);
+    // Add highlight — resolve Convex doc ID if needed
+    let resolvedChannelId = channel._id || channel.channelId || channel.id;
+    if (!resolvedChannelId && channel.youtubeChannelId) {
+      const doc = await lookupChannelByYoutubeId(channel.youtubeChannelId);
+      if (doc) resolvedChannelId = doc._id;
+    }
+    if (!resolvedChannelId) { showToast('Channel not found'); return; }
+    let customImage = null;
+    if (imagePreview.style.display !== 'none' && imagePreview.src) {
+      customImage = await resizeImageToDataUrl(imagePreview.src);
+    }
+    const result = await addHighlightToChannel(resolvedChannelId, videoId, resolvedTitle, customImage);
 
     if (result?.ok) {
       showToast('Highlight added!');
@@ -960,8 +1053,7 @@ async function showAddHighlightForm(channel) {
       if (addBtn) addBtn.style.display = '';
 
       // Just refresh highlights list - never close modal automatically
-      const channelId = channel._id || channel.channelId || channel.id;
-      const highlights = await loadChannelHighlights(channelId);
+      const highlights = await loadChannelHighlights(resolvedChannelId);
 
       // Re-render highlights in current modal
       const listEl = document.querySelector('[data-highlights-list]');

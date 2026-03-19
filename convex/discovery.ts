@@ -146,7 +146,6 @@ export const feedFromFollowing = query({
 export const allPublicUsers = query({
   handler: async (ctx) => {
     const users = await ctx.db.query("users").collect();
-    // Count channels per user in bulk by scanning userChannels once
     const allUCs = await ctx.db.query("userChannels").collect();
     const countByUser: Record<string, number> = {};
     for (const uc of allUCs) {
@@ -154,13 +153,22 @@ export const allPublicUsers = query({
       countByUser[uid] = (countByUser[uid] || 0) + 1;
     }
 
+    const allCols = await ctx.db.query("collections").collect();
+    const colCountByUser: Record<string, number> = {};
+    for (const col of allCols) {
+      const uid = col.userId as string;
+      colCountByUser[uid] = (colCountByUser[uid] || 0) + 1;
+    }
+
     return users
       .filter((u) => u.isPublic !== false)
       .map((u) => ({
         id: u._id,
         username: u.username,
+        displayName: u.displayName || "",
         bio: u.bio || "",
         channelCount: countByUser[u._id as string] || 0,
+        collectionCount: colCountByUser[u._id as string] || 0,
         createdAt: u.createdAt,
       }));
   },

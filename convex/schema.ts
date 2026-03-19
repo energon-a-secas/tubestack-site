@@ -7,6 +7,7 @@ export default defineSchema({
     passwordHash: v.string(),
     role: v.optional(v.string()),
     bio: v.optional(v.string()),
+    displayName: v.optional(v.string()),
     isPublic: v.optional(v.boolean()),
     createdAt: v.number(),
   }).index("by_username", ["username"]),

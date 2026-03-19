@@ -43,6 +43,15 @@ export function doLogout() {
   state.similarUsers = [];
 }
 
+// ── Profile ─────────────────────────────────────────────────
+export async function updateProfile(bio, displayName, isPublic) {
+  const user = getLoggedInUser();
+  if (!user) return { ok: false, error: 'Login required' };
+  const args = { username: user.username, bio, displayName };
+  if (isPublic !== undefined) args.isPublic = isPublic;
+  return await m(api.auth.updateProfile, args);
+}
+
 // ── Channel operations ───────────────────────────────────────
 export async function addChannelToStack(channelData) {
   const user = getLoggedInUser();
@@ -100,28 +109,25 @@ export async function updateChannelTags(channelId, categories, note) {
 }
 
 // ── Collections ─────────────────────────────
-export async function createCollection(name, description, channelIds) {
+export async function createCollection(name, description, channelIds, providedImageUrl) {
   const user = getLoggedInUser();
   if (!user) return null;
 
-  // Generate collection image from channel thumbnails
-  let imageUrl = '';
-  if (channelIds && channelIds.length > 0) {
+  // Use provided image URL, or generate from channel thumbnails
+  let imageUrl = providedImageUrl || '';
+  if (!imageUrl && channelIds && channelIds.length > 0) {
     const { generateCollectionSVG } = await import('./collection-svg.js');
 
-    // Fetch channel data to get thumbnail URLs
     const channels = await Promise.all(
       channelIds.map(async (channelId) => {
         return await q(api.channels.get, { id: channelId });
       })
     );
 
-    // Filter out null channels and extract thumbnail URLs
     const thumbnailUrls = channels
       .filter(ch => ch && ch.thumbnailUrl)
       .map(ch => ch.thumbnailUrl);
 
-    // Generate SVG image
     imageUrl = generateCollectionSVG(thumbnailUrls, name);
   }
 
@@ -426,7 +432,7 @@ export async function addHighlightToChannel(channelId, youtubeVideoId, title, cu
   // Use custom thumbnail if provided, otherwise use YouTube's default
   const thumbnailUrl = customThumbnailUrl || `https://img.youtube.com/vi/${youtubeVideoId}/mqdefault.jpg`;
 
-  return await m(api.highlights.addHighlight, {
+  const id = await m(api.highlights.addHighlight, {
     channelId,
     youtubeVideoId,
     title,
@@ -434,6 +440,7 @@ export async function addHighlightToChannel(channelId, youtubeVideoId, title, cu
     sharedBy: user.id,
     sharedByUsername: user.username,
   });
+  return id ? { ok: true, id } : { ok: false, error: 'Failed to add highlight' };
 }
 
 export async function loadChannelHighlights(channelId) {
@@ -454,6 +461,14 @@ export async function getUserHighlightVote(highlightId) {
   const user = getLoggedInUser();
   if (!user) return 0;
   return await q(api.highlights.getUserVote, { highlightId, userId: user.id }) || 0;
+}
+
+export async function getFollowerCounts(userId) {
+  return await q(api.follows.getCounts, { userId });
+}
+
+export async function lookupChannelByYoutubeId(youtubeChannelId) {
+  return await q(api.channels.getByYoutubeId, { youtubeChannelId });
 }
 
 export async function removeSharedVideo(videoId) {

@@ -19,7 +19,7 @@ export const create = mutation({
       username: args.username,
       name: args.name.trim().slice(0, 60),
       description: args.description?.trim().slice(0, 200) || "",
-      imageUrl: args.imageUrl?.trim().slice(0, 500) || "",
+      imageUrl: args.imageUrl?.trim() || "",
       channelIds: args.channelIds,
       createdAt: Date.now(),
     });
@@ -45,7 +45,7 @@ export const update = mutation({
     const patch: Record<string, unknown> = {};
     if (args.name !== undefined) patch.name = args.name.trim().slice(0, 60);
     if (args.description !== undefined) patch.description = args.description.trim().slice(0, 200);
-    if (args.imageUrl !== undefined) patch.imageUrl = args.imageUrl.trim().slice(0, 500);
+    if (args.imageUrl !== undefined) patch.imageUrl = args.imageUrl.trim();
     if (args.channelIds !== undefined) patch.channelIds = args.channelIds;
     await ctx.db.patch(args.id, patch);
     return { ok: true };
@@ -84,23 +84,48 @@ export const removeChannel = mutation({
   },
 });
 
+// Fix broken imageUrl (SVG data URLs, truncated base64) by replacing with first channel thumbnail
+function isValidImageUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  if (url.startsWith("http://") || url.startsWith("https://")) return true;
+  if (url.startsWith("data:image/svg")) return false;
+  if (url.startsWith("data:image/") && url.length > 1000) return true;
+  return false;
+}
+
+async function withCoverFallback(ctx: any, cols: any[]) {
+  const results = [];
+  for (const col of cols) {
+    let imageUrl = col.imageUrl;
+    if (!isValidImageUrl(imageUrl) && col.channelIds.length > 0) {
+      const ch = await ctx.db.get(col.channelIds[0]);
+      if (ch?.thumbnailUrl) imageUrl = ch.thumbnailUrl;
+      else imageUrl = "";
+    }
+    results.push({ ...col, imageUrl });
+  }
+  return results;
+}
+
 export const listByUser = query({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const cols = await ctx.db
       .query("collections")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .collect();
+    return withCoverFallback(ctx, cols);
   },
 });
 
 export const listByUsername = query({
   args: { username: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const cols = await ctx.db
       .query("collections")
       .withIndex("by_username", (q) => q.eq("username", args.username))
       .collect();
+    return withCoverFallback(ctx, cols);
   },
 });
 

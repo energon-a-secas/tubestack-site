@@ -95,7 +95,7 @@ export const setRole = mutation({
 });
 
 export const updateProfile = mutation({
-  args: { username: v.string(), bio: v.optional(v.string()), isPublic: v.optional(v.boolean()) },
+  args: { username: v.string(), bio: v.optional(v.string()), displayName: v.optional(v.string()), isPublic: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
     const user = await ctx.db
       .query("users")
@@ -103,7 +103,8 @@ export const updateProfile = mutation({
       .first();
     if (!user) return { ok: false, error: "User not found" };
     const patch: Record<string, unknown> = {};
-    if (args.bio !== undefined) patch.bio = args.bio.trim().slice(0, 100);
+    if (args.bio !== undefined) patch.bio = args.bio.trim().slice(0, 160);
+    if (args.displayName !== undefined) patch.displayName = args.displayName.trim().slice(0, 40);
     if (args.isPublic !== undefined) patch.isPublic = args.isPublic;
     await ctx.db.patch(user._id, patch);
     return { ok: true };
@@ -121,6 +122,7 @@ export const getUser = query({
     return {
       id: user._id,
       username: user.username,
+      displayName: user.displayName || "",
       bio: user.bio || "",
       isPublic: user.isPublic !== false,
       role: user.role || "user",

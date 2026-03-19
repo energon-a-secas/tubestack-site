@@ -47,16 +47,16 @@
       <a href="https://ehq.cl/" target="_blank" rel="noopener noreferrer">
         <img src="https://pub-b597cd281a384f98a47e1f043a6c4160.r2.dev/v1.0.0/energon-classic-logo.png" class="header-logo-img" alt="Logo">
       </a>
-      <div>
+      <a href="#feed" class="header-title-link">
         <h1>TubeStack</h1>
         <div class="header-subtitle">YouTube channels engineers watch</div>
-      </div>
+      </a>
     </div>
 
     <nav>
-      <button class="nav-link active" data-view="feed">Feed</button>
-      <button class="nav-link" data-view="explore">Explore</button>
-      <button class="nav-link" data-view="stack">My Stack</button>
+      <button class="nav-link active" data-view="feed" title="Feed (1)">Feed</button>
+      <button class="nav-link" data-view="explore" title="Explore (2)">Explore</button>
+      <button class="nav-link" data-view="stack" title="My Stack (3)">My Stack</button>
       <button class="auth-toggle" id="authToggle" aria-label="Account">
         <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
           <path d="M7.5 6.5C7.5 8.981 9.519 11 12 11s4.5-2.019 4.5-4.5S14.481 2 12 2 7.5 4.019 7.5 6.5zM20 21h1v-1c0-3.859-3.141-7-7-7h-4c-3.86 0-7 3.141-7 7v1h17z"/>
@@ -117,7 +117,7 @@
   <div class="search-overlay" id="recommendOverlay" hidden>
     <div class="search-panel recommend-panel">
       <div class="search-header">
-        <h3 style="flex:1; font-size:1.1em;">Recommend Channel</h3>
+        <h3 class="recommend-title">Recommend Channel</h3>
         <button class="search-close" id="recommendClose">&times;</button>
       </div>
       <div class="recommend-body" id="recommendBody"></div>

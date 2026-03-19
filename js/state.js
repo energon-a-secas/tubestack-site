@@ -127,7 +127,6 @@ export const state = {
   searchResults: [],
   loading: false,
   sortBy: 'date',         // 'date' | 'subscribers' | 'name'
-  editMode: false,        // Edit mode for My Stack
   highlights: {},         // channelId -> highlights[] mapping
 };
 
