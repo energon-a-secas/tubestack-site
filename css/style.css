@@ -114,7 +114,12 @@ nav {
   background: rgba(255,255,255,0.12);
   color: #fff;
 }
-.auth-toggle svg { width: 22px; height: 22px; }
+.auth-toggle svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: block;
+}
 
 .rec-badge {
   position: absolute;
@@ -134,6 +139,7 @@ nav {
 
 .header-home {
   display: flex; align-items: center;
+  margin-left: 5px;
   padding: 5px;
   color: rgba(255,255,255,0.9); text-decoration: none;
   border-radius: var(--radius-sm);
