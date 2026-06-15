@@ -90,7 +90,7 @@ nav {
 }
 .nav-link:hover {
   background: rgba(255,255,255,0.12);
-  color: #fff;
+  color: var(--text-primary);
 }
 .nav-link.active {
   background: var(--accent-dim);
@@ -112,7 +112,7 @@ nav {
 }
 .auth-toggle:hover {
   background: rgba(255,255,255,0.12);
-  color: #fff;
+  color: var(--text-primary);
 }
 .auth-toggle svg {
   width: 22px;
@@ -145,7 +145,7 @@ nav {
   border-radius: var(--radius-sm);
   transition: color var(--dur), background var(--dur); flex-shrink: 0;
 }
-.header-home:hover { color: #fff; background: rgba(255,255,255,0.12); }
+.header-home:hover { color: var(--text-primary); background: rgba(255,255,255,0.12); }
 .header-home svg { width: 34px; height: 34px; display: block; }
 
 /* ── Auth panel ────────────────────────────────────────────── */
@@ -689,7 +689,7 @@ nav {
 }
 
 /* ── Rec card ─────────────────────────────────────────────── */
-.rec-card { border-left: 3px solid var(--accent); }
+.rec-card { border-color: var(--accent); background: var(--accent-dim); }
 .rec-from {
   font-size: var(--text-xs);
   color: var(--text-muted);

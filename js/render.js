@@ -315,7 +315,7 @@ function renderCollectionDetail() {
     <div class="collection-detail-actions">
       <button class="btn btn-sm btn-outline" data-copy-link="${escHtml(shareUrl)}">Copy Link</button>
       ${isOwner ? `<div class="overflow-menu-wrapper">
-        <button class="btn btn-sm btn-ghost overflow-trigger" data-overflow-toggle aria-haspopup="true" aria-expanded="false">&#x22EF;</button>
+        <button class="btn btn-sm btn-ghost overflow-trigger" data-overflow-toggle aria-haspopup="true" aria-expanded="false" aria-label="More actions">&#x22EF;</button>
         <div class="overflow-menu" role="menu">
           <button class="overflow-menu-item" role="menuitem" data-edit-collection="${col._id}" data-col-name="${escHtml(col.name)}" data-col-desc="${escHtml(col.description || '')}">Edit</button>
           <button class="overflow-menu-item overflow-menu-item--danger" role="menuitem" data-delete-collection="${col._id}">Delete Collection</button>
@@ -428,7 +428,7 @@ function renderStackCard(uc) {
         <span class="action-icon">▶</span> Highlights
       </button>
       <div class="overflow-menu-wrapper">
-        <button class="btn btn-sm btn-ghost action-btn overflow-trigger" data-overflow-toggle aria-haspopup="true" aria-expanded="false">&#x22EF;</button>
+        <button class="btn btn-sm btn-ghost action-btn overflow-trigger" data-overflow-toggle aria-haspopup="true" aria-expanded="false" aria-label="More actions">&#x22EF;</button>
         <div class="overflow-menu" role="menu">
           ${notInCollections.length ? `<button class="overflow-menu-item" role="menuitem" data-add-to-collection="${uc.channelId}">Add to Collection</button>` : ''}
           <button class="overflow-menu-item" role="menuitem" data-edit-tags="${uc.channelId}">Edit Tags</button>
@@ -510,7 +510,7 @@ function renderCollectionCard(col, owned) {
     <div class="collection-detail-actions">
       <button class="btn btn-sm btn-ghost" data-copy-link="${escHtml(shareUrl)}" title="Copy share link">Share</button>
       ${owned ? `<div class="overflow-menu-wrapper">
-        <button class="btn btn-sm btn-ghost overflow-trigger" data-overflow-toggle aria-haspopup="true" aria-expanded="false">&#x22EF;</button>
+        <button class="btn btn-sm btn-ghost overflow-trigger" data-overflow-toggle aria-haspopup="true" aria-expanded="false" aria-label="More actions">&#x22EF;</button>
         <div class="overflow-menu" role="menu">
           <button class="overflow-menu-item" role="menuitem" data-edit-collection="${col._id}" data-col-name="${escHtml(col.name)}" data-col-desc="${escHtml(col.description || '')}">Edit</button>
           <button class="overflow-menu-item overflow-menu-item--danger" role="menuitem" data-delete-collection="${col._id}">Delete</button>
@@ -717,7 +717,7 @@ export function renderHighlightsModal(channel) {
     <div class="highlights-modal">
       <div class="highlights-modal-header">
         <h3>Highlights from ${escHtml(channel.name)}</h3>
-        <button class="btn btn-ghost highlights-close" data-highlights-close>&times;</button>
+        <button class="btn btn-ghost highlights-close" type="button" data-highlights-close aria-label="Close highlights">&times;</button>
       </div>
       <div class="highlights-modal-body" data-highlights-list data-channel-id="${channelId}">
         <div class="loading">Loading highlights...</div>
