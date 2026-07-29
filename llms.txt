@@ -1,0 +1,12 @@
+# TubeStack
+
+> YouTube channel discovery for engineers — curate stacks, browse peers, match scores
+
+- Live: https://tubestack.neorgon.com/
+- Part of the Neorgon tool suite (free, no signup, runs in your browser): https://neorgon.com/
+- Keywords: youtube, discovery, convex, cloudflare-worker
+
+## More Neorgon tools
+
+- [Neorgon hub](https://neorgon.com/): Browse and launch every tool from one page.
+- [Full suite index](https://neorgon.com/llms.txt): Machine-readable list of every Neorgon tool.
