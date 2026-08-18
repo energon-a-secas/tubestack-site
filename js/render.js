@@ -3,6 +3,21 @@ import { state, getLoggedInUser, CATEGORIES } from './state.js';
 import { escHtml, escAttr, formatCount, timeAgo } from './utils.js';
 import { matchBadgeClass, matchLabel } from './social.js';
 
+/* ── Menu icons ───────────────────────────────────────────────
+   Inline rather than linked, because these render inside strings that are
+   assigned to innerHTML and an <img> would cost a request per menu item.
+   `stroke="currentColor"` is what lets one pencil serve both the normal item
+   and the red danger item without a second copy.
+
+   The label stays next to the icon. These are menu items, not toolbar
+   buttons: an icon alone in a dropdown is a guess for a sighted reader and
+   nothing at all for a screen reader, so the icon is marked aria-hidden and
+   the text carries the meaning. */
+const ICON = {
+  edit: '<svg class="menu-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  trash: '<svg class="menu-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>'
+};
+
 const app = () => document.getElementById('app');
 
 export function renderView() {
@@ -317,8 +332,8 @@ function renderCollectionDetail() {
       ${isOwner ? `<div class="overflow-menu-wrapper">
         <button class="btn btn-sm btn-ghost overflow-trigger" data-overflow-toggle aria-haspopup="true" aria-expanded="false" aria-label="More actions">&#x22EF;</button>
         <div class="overflow-menu" role="menu">
-          <button class="overflow-menu-item" role="menuitem" data-edit-collection="${col._id}" data-col-name="${escHtml(col.name)}" data-col-desc="${escHtml(col.description || '')}">Edit</button>
-          <button class="overflow-menu-item overflow-menu-item--danger" role="menuitem" data-delete-collection="${col._id}">Delete Collection</button>
+          <button class="overflow-menu-item" role="menuitem" data-edit-collection="${col._id}" data-col-name="${escHtml(col.name)}" data-col-desc="${escHtml(col.description || '')}">${ICON.edit}Edit</button>
+          <button class="overflow-menu-item overflow-menu-item--danger" role="menuitem" data-delete-collection="${col._id}">${ICON.trash}Delete Collection</button>
         </div>
       </div>` : ''}
     </div>
@@ -431,8 +446,8 @@ function renderStackCard(uc) {
         <button class="btn btn-sm btn-ghost action-btn overflow-trigger" data-overflow-toggle aria-haspopup="true" aria-expanded="false" aria-label="More actions">&#x22EF;</button>
         <div class="overflow-menu" role="menu">
           ${notInCollections.length ? `<button class="overflow-menu-item" role="menuitem" data-add-to-collection="${uc.channelId}">Add to Collection</button>` : ''}
-          <button class="overflow-menu-item" role="menuitem" data-edit-tags="${uc.channelId}">Edit Tags</button>
-          <button class="overflow-menu-item overflow-menu-item--danger" role="menuitem" data-remove-channel="${uc.channelId}">Remove from Stack</button>
+          <button class="overflow-menu-item" role="menuitem" data-edit-tags="${uc.channelId}">${ICON.edit}Edit Tags</button>
+          <button class="overflow-menu-item overflow-menu-item--danger" role="menuitem" data-remove-channel="${uc.channelId}">${ICON.trash}Remove from Stack</button>
         </div>
       </div>
     </div>
@@ -512,8 +527,8 @@ function renderCollectionCard(col, owned) {
       ${owned ? `<div class="overflow-menu-wrapper">
         <button class="btn btn-sm btn-ghost overflow-trigger" data-overflow-toggle aria-haspopup="true" aria-expanded="false" aria-label="More actions">&#x22EF;</button>
         <div class="overflow-menu" role="menu">
-          <button class="overflow-menu-item" role="menuitem" data-edit-collection="${col._id}" data-col-name="${escHtml(col.name)}" data-col-desc="${escHtml(col.description || '')}">Edit</button>
-          <button class="overflow-menu-item overflow-menu-item--danger" role="menuitem" data-delete-collection="${col._id}">Delete</button>
+          <button class="overflow-menu-item" role="menuitem" data-edit-collection="${col._id}" data-col-name="${escHtml(col.name)}" data-col-desc="${escHtml(col.description || '')}">${ICON.edit}Edit</button>
+          <button class="overflow-menu-item overflow-menu-item--danger" role="menuitem" data-delete-collection="${col._id}">${ICON.trash}Delete</button>
         </div>
       </div>` : ''}
     </div>

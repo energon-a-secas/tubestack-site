@@ -1550,7 +1550,11 @@ nav {
 }
 .overflow-menu.open { display: block; }
 .overflow-menu-item {
-  display: block;
+  /* flex, not block: the icon and its label share a baseline-independent row,
+     so a two-line label wraps beside the icon instead of under it. */
+  display: flex;
+  align-items: center;
+  gap: 9px;
   width: 100%;
   padding: 8px 14px;
   border: none;
@@ -1562,6 +1566,16 @@ nav {
   transition: background var(--dur-fast);
 }
 .overflow-menu-item:hover { background: var(--surface-2); }
+/* Fixed box so labels line up whatever the glyph's own width is, and never
+   squeezed by a long label. `currentColor` in the SVG means the danger item's
+   red applies to its icon too, with no second copy of the path. */
+.menu-icon {
+  flex: 0 0 15px;
+  width: 15px;
+  height: 15px;
+  opacity: .8;
+}
+.overflow-menu-item:hover .menu-icon { opacity: 1; }
 .overflow-menu-item--danger { color: #f87171; }
 .overflow-menu-item--danger:hover { background: rgba(248,113,113,.08); }
 
