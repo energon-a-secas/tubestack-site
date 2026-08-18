@@ -41,7 +41,7 @@ Browser --[ES modules]--> Convex Cloud (queries/mutations)
 
 ### Backend (`convex/`)
 
-8 tables in `schema.ts`. No joins — usernames denormalized into junction tables.
+8 tables in `schema.ts`. No joins: usernames denormalized into junction tables.
 
 | File | Key points |
 |------|------------|
@@ -58,15 +58,15 @@ Browser --[ES modules]--> Convex Cloud (queries/mutations)
 
 YouTube Data API v3 proxy. `YOUTUBE_API_KEY` as Wrangler secret. POST-only, CORS restricted.
 
-- `POST /search {"q":"..."}` — 100 quota units, 5 results
-- `POST /channel {"id":"UC..."}` — 1 quota unit
+- `POST /search {"q":"..."}`: 100 quota units, 5 results
+- `POST /channel {"id":"UC..."}`: 1 quota unit
 
 Daily quota: 10,000 units.
 
 ## Critical Gotchas (read these first)
 
 ### Convex query results are immutable
-Documents returned by `.collect()` or `.get()` cannot be mutated in place — changes are silently dropped during serialization. Always spread into new objects: `results.push({ ...doc, newField })`. This cost hours of debugging.
+Documents returned by `.collect()` or `.get()` cannot be mutated in place, changes are silently dropped during serialization. Always spread into new objects: `results.push({ ...doc, newField })`. This cost hours of debugging.
 
 ### Collection imageUrl was historically corrupted
 Old collections have broken `data:image/svg` or truncated `data:image/jpeg` (exactly 500 chars) from a since-removed `slice(0, 500)`. The `withCoverFallback()` function in `collections.ts` detects these and replaces with the first channel's YouTube thumbnail. Frontend `isValidImageUrl()` in `render.js` also filters: rejects all SVG data URLs, requires >1000 chars for other data URLs.
@@ -78,7 +78,7 @@ After deploying backend changes via `npx convex dev --once`, the browser's exist
 YouTube `yt3.ggpht.com` blocks images when Referer is localhost. Page has `<meta name="referrer" content="no-referrer">` globally, but add `referrerpolicy="no-referrer"` to any new `<img>` tags.
 
 ### HTML attribute encoding
-Channel data lives in `data-*` attributes. Always use `escAttr()` (JSON-safe) not raw `JSON.stringify` — descriptions with quotes/newlines break parsing.
+Channel data lives in `data-*` attributes. Always use `escAttr()` (JSON-safe) not raw `JSON.stringify`, descriptions with quotes/newlines break parsing.
 
 ### `maxlength` on inputs truncates programmatic `.value` too
 Never use `maxlength` on hidden inputs or inputs that receive long programmatic values (base64, URLs). Use validation in JS instead.
@@ -95,10 +95,10 @@ Search = 100 units (regardless of maxResults). Channel detail = 1 unit. Frontend
 Hash-based: `#feed`, `#explore`, `#stack`, `#user=username`, `#collection=id`
 
 ### Card types
-- **Channel card** (`renderChannelCard`) — used in Feed, profile views. Shows thumbnail, name, stats, categories
-- **Stack card** (`renderStackCard`) — used in My Stack. Adds Highlights button + overflow menu (Edit Tags, Add to Collection, Remove)
-- **User card** (`renderUserCard`) — `<a>` element, clickable. Avatar initial, display name, @handle, channel/collection counts
-- **Collection card** (`renderCollectionCard`) — cover image via `getCollectionCoverUrl()`, overflow menu for owner
+- **Channel card** (`renderChannelCard`): used in Feed, profile views. Shows thumbnail, name, stats, categories
+- **Stack card** (`renderStackCard`): used in My Stack. Adds Highlights button + overflow menu (Edit Tags, Add to Collection, Remove)
+- **User card** (`renderUserCard`): `<a>` element, clickable. Avatar initial, display name, @handle, channel/collection counts
+- **Collection card** (`renderCollectionCard`): cover image via `getCollectionCoverUrl()`, overflow menu for owner
 
 ### Overflow menus
 `.overflow-menu-wrapper` with `[data-overflow-toggle]` trigger. Click toggles `.open`. Document click closes all.
