@@ -46,7 +46,7 @@ deploy:
 .PHONY: serve
 serve:
 	@echo "Serving on http://localhost:$(PORT)"
-	python3 -m http.server $(PORT)
+	@if [ -f ../../scripts/serve.py ]; then python3 ../../scripts/serve.py $(PORT); else python3 -m http.server $(PORT); fi
 
 .PHONY: kill
 kill:
