@@ -12,13 +12,13 @@ npx convex dev                 # Terminal 1: start Convex backend
 make serve                     # Terminal 2: serve on http://localhost:8827
 ```
 
-The Cloudflare Worker (YouTube API proxy) requires a separate setup — see `worker/` directory.
+The Cloudflare Worker (YouTube API proxy) requires a separate setup, see `worker/` directory.
 
 ## Architecture
 
-- **Frontend:** Modular ES modules (`js/*.js`) — no build step, served via `python3 -m http.server`
-- **Backend:** Convex serverless — 6 tables (users, channels, userChannels, collections, follows, recommendations)
-- **Proxy:** Cloudflare Worker — keeps YouTube API key secret, POST-only endpoints
+- **Frontend:** Modular ES modules (`js/*.js`): no build step, served via `python3 -m http.server`
+- **Backend:** Convex serverless: 6 tables (users, channels, userChannels, collections, follows, recommendations)
+- **Proxy:** Cloudflare Worker: keeps YouTube API key secret, POST-only endpoints
 
 ## Features
 

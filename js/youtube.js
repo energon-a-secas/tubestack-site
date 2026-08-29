@@ -103,7 +103,7 @@ function demoChannel(id) {
   return {
     youtubeChannelId: id,
     name: 'Demo Channel',
-    description: 'Worker URL not configured — using demo data',
+    description: 'Worker URL not configured: using demo data',
     thumbnailUrl: '',
     subscriberCount: '100000',
     videoCount: '500',
