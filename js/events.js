@@ -71,15 +71,21 @@ export async function loadInitialData() {
 export function bindEvents() {
   window.addEventListener('hashchange', navigate);
 
-  // Image fallback for highlight thumbnails (data-fallback-src). A listener
+  // Image fallback for highlight thumbnails (data-fallback-src), and hiding
+  // collection covers that fail to load (data-hide-on-error). A listener
   // rather than an inline onerror, so no stored value ever sits inside a
-  // script. error does not bubble, hence the capture phase. The attribute is
-  // removed before the swap so each image falls back at most once: comparing
-  // img.src is not enough, because the browser normalizes it (an id of ".."
-  // turns /vi/../ into /), and a failing fallback would then retry forever.
+  // script and the page CSP needs no 'unsafe-inline'. error does not bubble,
+  // hence the capture phase. The fallback attribute is removed before the
+  // swap so each image falls back at most once: comparing img.src is not
+  // enough, because the browser normalizes it (an id of ".." turns /vi/../
+  // into /), and a failing fallback would then retry forever.
   document.addEventListener('error', (e) => {
     const img = e.target;
     if (!(img instanceof HTMLImageElement)) return;
+    if (img.hasAttribute('data-hide-on-error')) {
+      img.style.display = 'none';
+      return;
+    }
     const fallback = img.dataset.fallbackSrc;
     if (!fallback) return;
     img.removeAttribute('data-fallback-src');
@@ -768,6 +774,12 @@ async function handleGlobalClick(e) {
 
 // Explore filter input
 document.addEventListener('input', (e) => {
+  // Edit-collection modal: a pasted cover URL goes into the hidden field the
+  // Save handler reads (was an inline oninput, which the page CSP refuses).
+  if (e.target.id === 'editColImgUrl') {
+    const hidden = document.getElementById('editColImg');
+    if (hidden) hidden.value = e.target.value;
+  }
   if (e.target.id === 'exploreSearch') {
     const val = e.target.value.toLowerCase();
     document.querySelectorAll('.user-card').forEach(card => {

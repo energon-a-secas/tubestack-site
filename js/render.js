@@ -326,7 +326,7 @@ function renderCollectionDetail() {
 
   let html = `<nav class="breadcrumb"><a class="breadcrumb-link" href="#feed">Feed</a><span class="breadcrumb-sep">/</span><a class="breadcrumb-link" href="#user=${escHtml(col.username)}">@${escHtml(col.username)}</a><span class="breadcrumb-sep">/</span><span class="breadcrumb-current">${escHtml(col.name)}</span></nav>`;
   html += `<div class="collection-header">
-    ${getCollectionCoverUrl(col) ? `<img class="collection-cover" src="${escHtml(getCollectionCoverUrl(col))}" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : ''}
+    ${getCollectionCoverUrl(col) ? `<img class="collection-cover" src="${escHtml(getCollectionCoverUrl(col))}" alt="" referrerpolicy="no-referrer" data-hide-on-error>` : ''}
     <h2>${escHtml(col.name)}</h2>
     ${col.description ? `<p class="text-muted">${escHtml(col.description)}</p>` : ''}
     <p class="collection-meta">by <a class="user-link" href="#user=${escHtml(col.username)}">${escHtml(col.username)}</a> &middot; ${col.channels.length} channels</p>
@@ -424,10 +424,10 @@ function renderStackCard(uc) {
   return `<div class="channel-card stack-card" data-channel-id="${uc.channelId}" data-open-channel="${escAttr({ youtubeChannelId: ch.youtubeChannelId, name: ch.name })}">
     <div class="stack-card-layout">
       <div class="stack-card-thumb">
-        ${ytLink ? `<a href="${ytLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${thumb}</a>` : thumb}
+        ${ytLink ? `<a href="${ytLink}" target="_blank" rel="noopener">${thumb}</a>` : thumb}
       </div>
       <div class="stack-card-body">
-        <div class="channel-name">${ytLink ? `<a href="${ytLink}" target="_blank" rel="noopener" class="channel-link" onclick="event.stopPropagation()">${escHtml(ch.name)}</a>` : escHtml(ch.name)}</div>
+        <div class="channel-name">${ytLink ? `<a href="${ytLink}" target="_blank" rel="noopener" class="channel-link">${escHtml(ch.name)}</a>` : escHtml(ch.name)}</div>
         <div class="channel-stats">
           ${ch.subscriberCount ? `<span>${formatCount(ch.subscriberCount)} subs</span>` : ''}
           ${ch.videoCount ? `<span>${formatCount(ch.videoCount)} videos</span>` : ''}
@@ -494,9 +494,17 @@ function renderUserCard(u) {
   </a>`;
 }
 
+// Image hosts the page's CSP allows (img-src in index.html; keep the two in
+// step). A cover pasted from any other host would be refused by the browser,
+// so it counts as missing and the card falls back instead of requesting it.
+const IMG_HOSTS = new Set(['yt3.ggpht.com', 'yt3.googleusercontent.com', 'i.ytimg.com', 'img.youtube.com']);
+
 function isValidImageUrl(url) {
   if (!url) return false;
-  if (url.startsWith('http://') || url.startsWith('https://')) return true;
+  if (url.startsWith('https://')) {
+    try { return IMG_HOSTS.has(new URL(url).hostname); } catch { return false; }
+  }
+  if (url.startsWith('http://')) return false;
   // Reject SVG data URLs — auto-generated ones embed external images that can't load
   if (url.startsWith('data:image/svg')) return false;
   // Accept other data URLs only if they're large enough to be real images (>1KB)
@@ -520,7 +528,7 @@ function renderCollectionCard(col, owned) {
   const shareUrl = `${location.origin}/#collection=${col._id}`;
   const coverUrl = getCollectionCoverUrl(col);
   return `<div class="collection-card">
-    ${coverUrl ? `<img class="collection-image" src="${escHtml(coverUrl)}" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : ''}
+    ${coverUrl ? `<img class="collection-image" src="${escHtml(coverUrl)}" alt="" referrerpolicy="no-referrer" data-hide-on-error>` : ''}
     <a class="collection-name" href="#collection=${col._id}">${escHtml(col.name)}</a>
     ${col.description ? `<div class="collection-desc">${escHtml(col.description)}</div>` : ''}
     <div class="collection-meta">
@@ -694,7 +702,7 @@ export function renderEditCollectionModal(id, name, description, imageUrl) {
         <label style="display:block; margin-bottom:6px; font-size:0.85rem; color:var(--text-muted);">Cover Image:</label>
         <input type="file" id="editColImgFile" accept="image/*" style="margin-bottom:8px;">
         <input type="hidden" id="editColImg" value="${escHtml(imageUrl)}">
-        <input type="text" class="tag-note-input" id="editColImgUrl" placeholder="Or paste image URL" style="margin-top:4px;" oninput="document.getElementById('editColImg').value=this.value">
+        <input type="text" class="tag-note-input" id="editColImgUrl" placeholder="Or paste image URL" style="margin-top:4px;">
         <div id="collectionImagePreviewContainer" style="margin-top:8px;">
           ${imageUrl ? `<img src="${escHtml(imageUrl)}" id="collectionImgPreview" style="width:100%; max-height:120px; object-fit:cover; border-radius:6px;" referrerpolicy="no-referrer">
           <button type="button" id="clearCollectionImg" class="btn btn-sm btn-ghost" style="margin-top:4px; font-size:0.8rem;">Remove Image</button>` : ''}

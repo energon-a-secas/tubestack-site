@@ -68,6 +68,9 @@ Daily quota: 10,000 units.
 ### Identity is claimed, not proven
 `login` returns `{ id, username }` and the browser keeps it in localStorage; no token reaches the server. Every mutation trusts the `userId`/`username` it is sent, and both are public (`getUser`, `allPublicUsers`). So never gate a privileged action on a caller-supplied name: that is why `setRole` is internal, and why `updateProfile` checks the password (the only per-user secret the server holds) instead of the name. Stored text (channel names, highlight ids) must be escaped at every sink; the server also refuses tag-like channel names, malformed video ids, and channel thumbnails that are not https on YouTube's image hosts (`isYoutubeThumb` in `channels.ts`).
 
+### The page CSP is strict (meta tag in `index.html`)
+No `'unsafe-inline'` for scripts: an `onclick=`/`onerror=`/`oninput=` attribute, in `index.html` or in a `render.js` template string, is refused by the browser and silently does nothing. Wire it in `events.js` instead (the capture-phase `error` listener already handles `data-fallback-src` and `data-hide-on-error`). The only inline script allowed is the Header Kit theme guard, by hash; smoke check 29 fails if it drifts. Every runtime origin is listed exactly: the esm.sh `convex@1.21.0` and `jwt-decode` paths, this site's Convex `/api/`, the Worker's `/search` and `/channel`, YouTube oEmbed, and four YouTube image hosts. Bumping the Convex version, calling a new host, or showing an image from a new host means editing the policy too. Collection covers from any other host are treated as missing (`IMG_HOSTS` in `render.js`, kept in step with `img-src`). `404.html` has its own no-script policy.
+
 ### Convex query results are immutable
 Documents returned by `.collect()` or `.get()` cannot be mutated in place, changes are silently dropped during serialization. Always spread into new objects: `results.push({ ...doc, newField })`. This cost hours of debugging.
 
