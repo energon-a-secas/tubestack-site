@@ -66,7 +66,7 @@ Daily quota: 10,000 units.
 ## Critical Gotchas (read these first)
 
 ### Identity is claimed, not proven
-`login` returns `{ id, username }` and the browser keeps it in localStorage; no token reaches the server. Every mutation trusts the `userId`/`username` it is sent, and both are public (`getUser`, `allPublicUsers`). So never gate a privileged action on a caller-supplied name: that is why `setRole` is internal, and why `updateProfile` checks the password (the only per-user secret the server holds) instead of the name. Stored text (channel names, highlight ids) must be escaped at every sink; the server also refuses tag-like channel names and malformed video ids.
+`login` returns `{ id, username }` and the browser keeps it in localStorage; no token reaches the server. Every mutation trusts the `userId`/`username` it is sent, and both are public (`getUser`, `allPublicUsers`). So never gate a privileged action on a caller-supplied name: that is why `setRole` is internal, and why `updateProfile` checks the password (the only per-user secret the server holds) instead of the name. Stored text (channel names, highlight ids) must be escaped at every sink; the server also refuses tag-like channel names, malformed video ids, and channel thumbnails that are not https on YouTube's image hosts (`isYoutubeThumb` in `channels.ts`).
 
 ### Convex query results are immutable
 Documents returned by `.collect()` or `.get()` cannot be mutated in place, changes are silently dropped during serialization. Always spread into new objects: `results.push({ ...doc, newField })`. This cost hours of debugging.

@@ -84,7 +84,7 @@ export async function addChannelToStack(channelData) {
     youtubeCategory: details.youtubeCategory || '',
     addedBy: user.username,
   });
-  if (!chRes?.ok) return { ok: false, error: 'Failed to save channel' };
+  if (!chRes?.ok) return { ok: false, error: chRes?.error || 'Failed to save channel' };
 
   // Link to user (no categories/note - add them separately if needed)
   const ucRes = await m(api.userChannels.add, {

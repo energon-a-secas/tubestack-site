@@ -15,6 +15,20 @@ function cleanChannelName(raw: string): string | null {
   return name;
 }
 
+// Channel thumbnails are shown on every visitor's cards, and refreshThumbnail
+// takes no proof of who is calling. So only https images on YouTube's own
+// image hosts are stored: anything else (another scheme, or a server that
+// logs every visitor's IP) is refused. YouTube's API hands the Worker channel
+// thumbnails on yt3.ggpht.com or yt3.googleusercontent.com.
+// The authority may hold only host characters and must end at "/", so no
+// "user@", port or backslash can make a browser read a different host.
+const YOUTUBE_THUMB = /^https:\/\/([a-z0-9-]+\.)*(ggpht|googleusercontent|ytimg)\.com\/[^\s"'<>]*$/i;
+const MAX_THUMB = 2048;
+
+function isYoutubeThumb(raw: string): boolean {
+  return raw.length <= MAX_THUMB && YOUTUBE_THUMB.test(raw);
+}
+
 export const addChannel = mutation({
   args: {
     youtubeChannelId: v.string(),
@@ -34,17 +48,20 @@ export const addChannel = mutation({
     if (existing) return { ok: true, id: existing._id, existed: true };
     const name = cleanChannelName(args.name);
     if (name === null) return { ok: false, error: "Invalid channel name" };
+    // A bad thumbnail does not block the channel: it is stored without one and
+    // needsRefresh reports it for the next refresh.
+    const thumbnailUrl = args.thumbnailUrl && isYoutubeThumb(args.thumbnailUrl) ? args.thumbnailUrl : "";
     const id = await ctx.db.insert("channels", {
       youtubeChannelId: args.youtubeChannelId,
       name,
       description: args.description || "",
-      thumbnailUrl: args.thumbnailUrl || "",
+      thumbnailUrl,
       subscriberCount: args.subscriberCount || "0",
       videoCount: args.videoCount || "0",
       youtubeCategory: args.youtubeCategory || "",
       addedBy: args.addedBy,
       createdAt: Date.now(),
-      lastRefreshed: args.thumbnailUrl ? Date.now() : undefined,
+      lastRefreshed: thumbnailUrl ? Date.now() : undefined,
     });
     return { ok: true, id, existed: false };
   },
@@ -61,6 +78,7 @@ export const refreshThumbnail = mutation({
   handler: async (ctx, args) => {
     const ch = await ctx.db.get(args.id);
     if (!ch) return { ok: false, error: "Channel not found" };
+    if (!isYoutubeThumb(args.thumbnailUrl)) return { ok: false, error: "Invalid thumbnail URL" };
     const patch: Record<string, unknown> = {
       thumbnailUrl: args.thumbnailUrl,
       lastRefreshed: Date.now()
