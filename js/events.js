@@ -3,7 +3,7 @@ import { state, getLoggedInUser } from './state.js';
 import { renderView, updateAuthUI, renderSearchResults, renderCategoryPicker, renderTagEditor, renderCollectionPicker, renderCreateCollectionModal, renderEditCollectionModal, renderHighlightsModal, renderHighlightCard } from './render.js';
 import { doRegister, doLogin, doLogout, addChannelToStack, removeFromStack, updateChannelTags, createCollection, updateCollection, deleteCollection, addChannelToCollection, removeChannelFromCollection, refreshChannelImage, followUser, unfollowUser, sendRecommendation, markRecSeen, loadMyStack, loadFeed, loadExplore, loadUserProfile, loadCollection, checkFollowing, getMatchScore, loadChannelHighlights, voteOnHighlight, getUserHighlightVote, addHighlightToChannel, getFollowerCounts, lookupChannelByYoutubeId, updateProfile } from './data.js';
 import { searchChannels } from './youtube.js';
-import { $, showToast, debounce, escAttr } from './utils.js';
+import { $, showToast, debounce, escAttr, escHtml } from './utils.js';
 
 // ── Hash router ──────────────────────────────────────────────
 function parseHash() {
@@ -70,6 +70,17 @@ export async function loadInitialData() {
 // ── Bind events ──────────────────────────────────────────────
 export function bindEvents() {
   window.addEventListener('hashchange', navigate);
+
+  // Image fallback for highlight thumbnails (data-fallback-src). A listener
+  // rather than an inline onerror, so no stored value ever sits inside a
+  // script. error does not bubble, hence the capture phase. The equality check
+  // stops a failing fallback from retrying forever.
+  document.addEventListener('error', (e) => {
+    const img = e.target;
+    if (!(img instanceof HTMLImageElement)) return;
+    const fallback = img.dataset.fallbackSrc;
+    if (fallback && img.src !== fallback) img.src = fallback;
+  }, true);
 
   // Nav buttons
   document.querySelectorAll('nav .nav-link').forEach(btn => {
@@ -1088,7 +1099,9 @@ async function showRecommendOverlay(channelId, channelName) {
   const body = $('recommendBody');
   if (!overlay || !body) return;
 
-  body.innerHTML = `<p style="margin-bottom:12px;">Recommend <strong>${channelName}</strong> to:</p>
+  // channelName comes back from data-recommend-name, which the browser has
+  // already decoded, so it is raw channel text again and must be escaped here.
+  body.innerHTML = `<p style="margin-bottom:12px;">Recommend <strong>${escHtml(channelName)}</strong> to:</p>
     <input type="text" id="recToUser" placeholder="Username" style="width:100%; margin-bottom:8px;" maxlength="20">
     <input type="text" id="recMessage" placeholder="Message (optional)" style="width:100%; margin-bottom:12px;" maxlength="200">
     <button class="btn btn-accent" id="sendRecBtn" style="width:100%;">Send</button>`;

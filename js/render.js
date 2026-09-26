@@ -345,7 +345,9 @@ function renderCollectionDetail() {
       // Inject highlights button (and remove button for owner) before closing footer
       const highlightsBtn = `<button class="btn btn-sm btn-ghost action-btn" data-show-highlights data-open-channel="${escAttr({ _id: ch._id, youtubeChannelId: ch.youtubeChannelId, name: ch.name })}"><span class="action-icon">▶</span> Highlights</button>`;
       const removeBtn = isOwner ? `<button class="btn btn-sm btn-danger" data-remove-from-collection="${col._id}" data-collection-channel="${ch._id}" style="margin-top:4px;">Remove</button>` : '';
-      card = card.replace(/<\/div>\s*$/, highlightsBtn + removeBtn + '</div>');
+      // A function, not a string: a string replacement expands $` and $& found
+      // in the channel name, which pasted the card into its own attribute.
+      card = card.replace(/<\/div>\s*$/, () => highlightsBtn + removeBtn + '</div>');
       return card;
     }).join('')}</div>`;
   } else {
@@ -569,7 +571,7 @@ export function renderSearchResults(results) {
 export function renderTagEditor(channelId, currentCategories, currentNote) {
   const cats = currentCategories || [];
   const note = currentNote || '';
-  return `<div class="tag-editor-overlay" data-tag-editor="${channelId}">
+  return `<div class="tag-editor-overlay" data-tag-editor="${escHtml(channelId)}">
     <div class="tag-editor">
       <h3>Edit Channel Tags</h3>
       <input type="text" class="tag-note-input tag-filter" placeholder="Filter categories..." style="margin-bottom:8px;">
@@ -580,7 +582,7 @@ export function renderTagEditor(channelId, currentCategories, currentNote) {
       </div>
       <input type="text" class="tag-note-input" placeholder="Personal note (optional)" value="${escHtml(note)}" maxlength="100">
       <div class="tag-editor-actions">
-        <button class="btn btn-accent" data-save-tags="${channelId}">Save</button>
+        <button class="btn btn-accent" data-save-tags="${escHtml(channelId)}">Save</button>
         <button class="btn btn-ghost" data-cancel-tags>Cancel</button>
       </div>
     </div>
@@ -629,7 +631,7 @@ export function renderCollectionPicker(channelId) {
               subtitle = `<span style="color:var(--text-muted); font-size:.7em;">${similarChannels} similar</span>`;
             }
           }
-          return `<button class="btn btn-outline collection-pick-btn" data-pick-collection="${c._id}" data-pick-channel="${channelId}" style="width:100%; margin-bottom:6px; justify-content:flex-start; align-items:center; gap:8px;">
+          return `<button class="btn btn-outline collection-pick-btn" data-pick-collection="${escHtml(c._id)}" data-pick-channel="${escHtml(channelId)}" style="width:100%; margin-bottom:6px; justify-content:flex-start; align-items:center; gap:8px;">
             <div style="flex:1; text-align:left;">
               <div>${escHtml(c.name)}</div>
               ${subtitle}
@@ -696,7 +698,7 @@ export function renderEditCollectionModal(id, name, description, imageUrl) {
         </div>
       </div>
       <div class="tag-editor-actions" style="margin-top:12px;">
-        <button class="btn btn-accent" data-confirm-edit-collection="${id}">Save</button>
+        <button class="btn btn-accent" data-confirm-edit-collection="${escHtml(id)}">Save</button>
         <button class="btn btn-ghost" data-cancel-tags>Cancel</button>
       </div>
     </div>
@@ -734,7 +736,7 @@ export function renderHighlightsModal(channel) {
         <h3>Highlights from ${escHtml(channel.name)}</h3>
         <button class="btn btn-ghost highlights-close" type="button" data-highlights-close aria-label="Close highlights">&times;</button>
       </div>
-      <div class="highlights-modal-body" data-highlights-list data-channel-id="${channelId}">
+      <div class="highlights-modal-body" data-highlights-list data-channel-id="${escHtml(channelId)}">
         <div class="loading">Loading highlights...</div>
       </div>
       <div class="highlights-modal-footer">
@@ -745,17 +747,22 @@ export function renderHighlightsModal(channel) {
 }
 
 export function renderHighlightCard(highlight, userVote) {
-  const ytLink = `https://www.youtube.com/watch?v=${escHtml(highlight.youtubeVideoId)}`;
+  // The video id is stored data. It goes into URLs through encodeURIComponent
+  // and then escHtml, and never into a script: the fallback thumbnail is a
+  // data attribute handled by the error listener in events.js.
+  const videoId = encodeURIComponent(highlight.youtubeVideoId || '');
+  const ytLink = escHtml(`https://www.youtube.com/watch?v=${videoId}`);
+  const fallbackThumb = escHtml(`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`);
   const upvoteClass = userVote === 1 ? 'vote-active' : '';
   const downvoteClass = userVote === -1 ? 'vote-active' : '';
 
   const thumbSrc = highlight.thumbnailUrl && highlight.thumbnailUrl.length < 200_000
     ? escHtml(highlight.thumbnailUrl)
-    : `https://img.youtube.com/vi/${escHtml(highlight.youtubeVideoId)}/mqdefault.jpg`;
+    : fallbackThumb;
 
   return `<div class="highlight-card" data-highlight-id="${highlight._id}">
     <a href="${ytLink}" target="_blank" rel="noopener" class="highlight-thumbnail">
-      <img src="${thumbSrc}" alt="${escHtml(highlight.title)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.src='https://img.youtube.com/vi/${escHtml(highlight.youtubeVideoId)}/mqdefault.jpg'">
+      <img src="${thumbSrc}" data-fallback-src="${fallbackThumb}" alt="${escHtml(highlight.title)}" loading="lazy" referrerpolicy="no-referrer">
     </a>
     <div class="highlight-info">
       <a href="${ytLink}" target="_blank" rel="noopener" class="highlight-title">${escHtml(highlight.title)}</a>
