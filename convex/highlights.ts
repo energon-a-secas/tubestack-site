@@ -12,6 +12,13 @@ export const addHighlight = mutation({
     sharedByUsername: v.string(),
   },
   handler: async (ctx, args) => {
+    // A YouTube video id is 11 characters of [A-Za-z0-9_-]. The id is built
+    // into links and thumbnail URLs on every viewer's page, so nothing else
+    // is stored.
+    if (!/^[A-Za-z0-9_-]{11}$/.test(args.youtubeVideoId)) {
+      throw new Error("Invalid YouTube video id");
+    }
+
     // Verify channel exists
     const channel = await ctx.db.get(args.channelId);
     if (!channel) {

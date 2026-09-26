@@ -1,6 +1,20 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+// Channel names are written into every visitor's page. The client escapes
+// them; this refuses markup where it is stored, so one missed sink cannot
+// run it. In HTML a tag opens only at "<" followed by a letter, "/", "!" or
+// "?", so "<3", "a < b" and & " ' > are all still accepted.
+const TAG_OPEN = /<[A-Za-z!\/?]/;
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]/g;
+const MAX_NAME = 200;
+
+function cleanChannelName(raw: string): string | null {
+  const name = raw.replace(CONTROL_CHARS, " ").trim();
+  if (name.length > MAX_NAME || TAG_OPEN.test(name)) return null;
+  return name;
+}
+
 export const addChannel = mutation({
   args: {
     youtubeChannelId: v.string(),
@@ -18,9 +32,11 @@ export const addChannel = mutation({
       .withIndex("by_youtube_id", (q) => q.eq("youtubeChannelId", args.youtubeChannelId))
       .first();
     if (existing) return { ok: true, id: existing._id, existed: true };
+    const name = cleanChannelName(args.name);
+    if (name === null) return { ok: false, error: "Invalid channel name" };
     const id = await ctx.db.insert("channels", {
       youtubeChannelId: args.youtubeChannelId,
-      name: args.name,
+      name,
       description: args.description || "",
       thumbnailUrl: args.thumbnailUrl || "",
       subscriberCount: args.subscriberCount || "0",
@@ -125,10 +141,15 @@ export const bulkImport = mutation({
           .first();
 
         if (!channel) {
+          const name = cleanChannelName(ch.name || 'Unknown Channel');
+          if (name === null) {
+            results.errors.push(`Invalid channel name for ${ch.youtubeChannelId}`);
+            continue;
+          }
           // Create new channel with minimal data
           const channelId = await ctx.db.insert("channels", {
             youtubeChannelId: ch.youtubeChannelId,
-            name: ch.name || 'Unknown Channel',
+            name: name || 'Unknown Channel',
             description: '',
             thumbnailUrl: '',
             subscriberCount: '0',
