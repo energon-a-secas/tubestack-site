@@ -45,7 +45,7 @@ Browser --[ES modules]--> Convex Cloud (queries/mutations)
 
 | File | Key points |
 |------|------------|
-| `auth.ts` | register (first user = admin), login, getUser, updateProfile (displayName, bio, isPublic). `setRole` is an `internalMutation`: run it from the Convex dashboard or `npx convex run auth:setRole '{"targetUsername":"x","role":"admin"}'` |
+| `auth.ts` | register (first user = admin), login, getUser, updateProfile (displayName, bio, isPublic; requires the current `password`). `setRole` is an `internalMutation`: run it from the Convex dashboard or `npx convex run auth:setRole '{"targetUsername":"x","role":"admin"}'` |
 | `channels.ts` | `addChannel` (dedup by youtubeChannelId), `refreshThumbnail`, `needsRefresh`, `bulkImport` |
 | `userChannels.ts` | User-channel links with categories/notes. `listByUser` joins channel data |
 | `collections.ts` | Channel lists. `listByUser`/`listByUsername` use `withCoverFallback()` to fix broken imageUrls |
@@ -66,7 +66,7 @@ Daily quota: 10,000 units.
 ## Critical Gotchas (read these first)
 
 ### Identity is claimed, not proven
-`login` returns `{ id, username }` and the browser keeps it in localStorage; no token reaches the server. Every mutation trusts the `userId`/`username` it is sent, and both are public (`getUser`, `allPublicUsers`). So never gate a privileged action on a caller-supplied name: that is why `setRole` is internal. Stored text (channel names, highlight ids) must be escaped at every sink; the server also refuses tag-like channel names and malformed video ids.
+`login` returns `{ id, username }` and the browser keeps it in localStorage; no token reaches the server. Every mutation trusts the `userId`/`username` it is sent, and both are public (`getUser`, `allPublicUsers`). So never gate a privileged action on a caller-supplied name: that is why `setRole` is internal, and why `updateProfile` checks the password (the only per-user secret the server holds) instead of the name. Stored text (channel names, highlight ids) must be escaped at every sink; the server also refuses tag-like channel names and malformed video ids.
 
 ### Convex query results are immutable
 Documents returned by `.collect()` or `.get()` cannot be mutated in place, changes are silently dropped during serialization. Always spread into new objects: `results.push({ ...doc, newField })`. This cost hours of debugging.
@@ -107,7 +107,7 @@ Hash-based: `#feed`, `#explore`, `#stack`, `#user=username`, `#collection=id`
 `.overflow-menu-wrapper` with `[data-overflow-toggle]` trigger. Click toggles `.open`. Document click closes all.
 
 ### Profile
-Own profile (`#user=myname`) shows Settings section: Display Name, Bio, Public Profile toggle. Save calls `updateProfile()`. Other users see Follow button + match score.
+Own profile (`#user=myname`) shows Settings section: Display Name, Bio, Public Profile toggle, Current Password. Save calls `updateProfile()`, which the server refuses without the right password. Other users see Follow button + match score.
 
 ### Explore
 "Members" directory sorted by channel count. User cards are `<a>` links. Search filters by username and display name.

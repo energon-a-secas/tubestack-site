@@ -654,7 +654,14 @@ async function handleGlobalClick(e) {
     const displayName = document.getElementById('profileDisplayName')?.value?.trim() || '';
     const bio = document.getElementById('profileBio')?.value?.trim() || '';
     const isPublic = document.getElementById('profileIsPublic')?.checked ?? true;
-    const res = await updateProfile(bio, displayName, isPublic);
+    const pwInput = document.getElementById('profilePassword');
+    const password = pwInput?.value || '';
+    if (!password) {
+      pwInput?.focus();
+      return showToast('Enter your current password to save');
+    }
+    const res = await updateProfile(bio, displayName, isPublic, password);
+    if (pwInput) pwInput.value = '';
     if (res?.ok) {
       showToast('Profile updated');
       await loadUserProfile(state.viewParam);

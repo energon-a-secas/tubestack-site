@@ -44,10 +44,11 @@ export function doLogout() {
 }
 
 // ── Profile ─────────────────────────────────────────────────
-export async function updateProfile(bio, displayName, isPublic) {
+export async function updateProfile(bio, displayName, isPublic, password) {
   const user = getLoggedInUser();
   if (!user) return { ok: false, error: 'Login required' };
-  const args = { username: user.username, bio, displayName };
+  if (!password) return { ok: false, error: 'Enter your current password to save' };
+  const args = { username: user.username, password, bio, displayName };
   if (isPublic !== undefined) args.isPublic = isPublic;
   return await m(api.auth.updateProfile, args);
 }

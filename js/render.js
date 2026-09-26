@@ -290,6 +290,9 @@ function renderUserProfile() {
           <span class="toggle-switch"></span>
         </label>
         <div class="settings-hint">When off, your profile won't appear in Explore.</div>
+        <label class="settings-label" for="profilePassword">Current Password</label>
+        <input type="password" id="profilePassword" class="settings-input" autocomplete="current-password" required>
+        <div class="settings-hint">Required to save changes.</div>
         <button class="btn btn-outline" data-save-profile>Save Changes</button>
       </div>
     </section>`;

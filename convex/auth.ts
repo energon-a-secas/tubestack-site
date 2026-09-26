@@ -92,14 +92,20 @@ export const setRole = internalMutation({
   },
 });
 
+// Usernames are public (getUser, allPublicUsers), so a claimed username alone
+// let anyone rewrite anyone's name and bio or hide them from Explore. The
+// password is the one per-user secret the server can check, so it is required
+// here and the settings form asks for it.
 export const updateProfile = mutation({
-  args: { username: v.string(), bio: v.optional(v.string()), displayName: v.optional(v.string()), isPublic: v.optional(v.boolean()) },
+  args: { username: v.string(), password: v.string(), bio: v.optional(v.string()), displayName: v.optional(v.string()), isPublic: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
     const user = await ctx.db
       .query("users")
       .withIndex("by_username", (q) => q.eq("username", args.username.trim().toLowerCase()))
       .first();
-    if (!user) return { ok: false, error: "User not found" };
+    if (!user || user.passwordHash !== simpleHash(args.password)) {
+      return { ok: false, error: "Incorrect password" };
+    }
     const patch: Record<string, unknown> = {};
     if (args.bio !== undefined) patch.bio = args.bio.trim().slice(0, 160);
     if (args.displayName !== undefined) patch.displayName = args.displayName.trim().slice(0, 40);
