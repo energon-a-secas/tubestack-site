@@ -45,7 +45,7 @@ Browser --[ES modules]--> Convex Cloud (queries/mutations)
 
 | File | Key points |
 |------|------------|
-| `auth.ts` | register (first user = admin), login, getUser, updateProfile (displayName, bio, isPublic) |
+| `auth.ts` | register (first user = admin), login, getUser, updateProfile (displayName, bio, isPublic). `setRole` is an `internalMutation`: run it from the Convex dashboard or `npx convex run auth:setRole '{"targetUsername":"x","role":"admin"}'` |
 | `channels.ts` | `addChannel` (dedup by youtubeChannelId), `refreshThumbnail`, `needsRefresh`, `bulkImport` |
 | `userChannels.ts` | User-channel links with categories/notes. `listByUser` joins channel data |
 | `collections.ts` | Channel lists. `listByUser`/`listByUsername` use `withCoverFallback()` to fix broken imageUrls |
@@ -64,6 +64,9 @@ YouTube Data API v3 proxy. `YOUTUBE_API_KEY` as Wrangler secret. POST-only, CORS
 Daily quota: 10,000 units.
 
 ## Critical Gotchas (read these first)
+
+### Identity is claimed, not proven
+`login` returns `{ id, username }` and the browser keeps it in localStorage; no token reaches the server. Every mutation trusts the `userId`/`username` it is sent, and both are public (`getUser`, `allPublicUsers`). So never gate a privileged action on a caller-supplied name: that is why `setRole` is internal. Stored text (channel names, highlight ids) must be escaped at every sink; the server also refuses tag-like channel names and malformed video ids.
 
 ### Convex query results are immutable
 Documents returned by `.collect()` or `.get()` cannot be mutated in place, changes are silently dropped during serialization. Always spread into new objects: `results.push({ ...doc, newField })`. This cost hours of debugging.

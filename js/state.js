@@ -21,7 +21,7 @@ export const api = {
     register: "auth:register",
     login: "auth:login",
     getRole: "auth:getRole",
-    setRole: "auth:setRole",
+    // setRole is an internalMutation: the browser cannot call it (see convex/auth.ts).
     updateProfile: "auth:updateProfile",
     getUser: "auth:getUser",
   },

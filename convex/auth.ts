@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 function simpleHash(str: string): string {
@@ -72,16 +72,14 @@ export const getRole = query({
   },
 });
 
-export const setRole = mutation({
-  args: { adminUsername: v.string(), targetUsername: v.string(), role: v.string() },
+// Internal only. Identity on this site is a username the browser claims (no
+// session or token reaches the server), so a public version that checked
+// "is adminUsername an admin" let anyone who knew an admin's name change any
+// user's role. Run it from the Convex dashboard (Functions > auth:setRole) or:
+//   npx convex run auth:setRole '{"targetUsername":"someone","role":"admin"}'
+export const setRole = internalMutation({
+  args: { targetUsername: v.string(), role: v.union(v.literal("admin"), v.literal("user")) },
   handler: async (ctx, args) => {
-    const admin = await ctx.db
-      .query("users")
-      .withIndex("by_username", (q) => q.eq("username", args.adminUsername.trim().toLowerCase()))
-      .first();
-    if (!admin || admin.role !== "admin") {
-      return { ok: false, error: "Not authorized" };
-    }
     const target = await ctx.db
       .query("users")
       .withIndex("by_username", (q) => q.eq("username", args.targetUsername.trim().toLowerCase()))
