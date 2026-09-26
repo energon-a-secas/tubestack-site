@@ -73,13 +73,19 @@ export function bindEvents() {
 
   // Image fallback for highlight thumbnails (data-fallback-src). A listener
   // rather than an inline onerror, so no stored value ever sits inside a
-  // script. error does not bubble, hence the capture phase. The equality check
-  // stops a failing fallback from retrying forever.
+  // script. error does not bubble, hence the capture phase. The attribute is
+  // removed before the swap so each image falls back at most once: comparing
+  // img.src is not enough, because the browser normalizes it (an id of ".."
+  // turns /vi/../ into /), and a failing fallback would then retry forever.
   document.addEventListener('error', (e) => {
     const img = e.target;
     if (!(img instanceof HTMLImageElement)) return;
     const fallback = img.dataset.fallbackSrc;
-    if (fallback && img.src !== fallback) img.src = fallback;
+    if (!fallback) return;
+    img.removeAttribute('data-fallback-src');
+    let next;
+    try { next = new URL(fallback, location.href).href; } catch { return; }
+    if (img.src !== next) img.src = next;
   }, true);
 
   // Nav buttons
