@@ -101,19 +101,20 @@ export function bindEvents() {
     });
   });
 
-  // Auth toggle — navigate to own profile if logged in, else open auth panel
+  // Auth toggle: navigate to own profile if logged in, else open auth panel
   const authToggle = $('authToggle');
   const authPanel = $('authPanel');
   if (authToggle && authPanel) {
     authToggle.addEventListener('click', () => {
       const user = getLoggedInUser();
       if (user) {
-        authPanel.classList.remove('open');
+        setAuthPanelOpen(false);
         location.hash = `#user=${user.username}`;
       } else {
-        authPanel.classList.toggle('open');
+        setAuthPanelOpen(!authPanel.classList.contains('open'));
       }
     });
+    setAuthPanelOpen(false);
   }
 
   // Auth tabs
@@ -138,7 +139,7 @@ export function bindEvents() {
       if (!u || !p) return showToast('Enter username and password');
       const res = await doLogin(u, p);
       if (res?.ok) {
-        authPanel?.classList.remove('open');
+        setAuthPanelOpen(false);
         showToast('Logged in as ' + res.username);
         navigate();
       } else {
@@ -157,7 +158,7 @@ export function bindEvents() {
       if (!u || !p) return showToast('Enter username and password');
       const res = await doRegister(u, p, b);
       if (res?.ok) {
-        authPanel?.classList.remove('open');
+        setAuthPanelOpen(false);
         showToast('Welcome, ' + res.username + '!');
         navigate();
       } else {
@@ -167,16 +168,7 @@ export function bindEvents() {
   }
 
   // Logout
-  const logoutBtn = $('authLogout');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      doLogout();
-      authPanel?.classList.remove('open');
-      updateAuthUI();
-      showToast('Logged out');
-      location.hash = 'feed';
-    });
-  }
+  $('authLogout')?.addEventListener('click', logOut);
 
   // Search overlay
   const searchClose = $('searchClose');
@@ -273,6 +265,32 @@ export function bindEvents() {
   // Enter key in auth forms
   $('authLoginPass')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') loginBtn?.click(); });
   $('authRegBio')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') regBtn?.click(); });
+}
+
+// ── Sign-in panel ────────────────────────────────────────────
+// The panel collapses with max-height, so while closed its tabs and fields
+// stayed in the tab order. It is inert until opened. Signed in, the account
+// button opens the profile instead, so it reports no expanded state then.
+function setAuthPanelOpen(open) {
+  const panel = $('authPanel');
+  if (!panel) return;
+  const toggle = $('authToggle');
+  // Closing with focus inside would leave focus on nothing: hand it back.
+  if (!open && panel.contains(document.activeElement)) toggle?.focus();
+  panel.classList.toggle('open', open);
+  panel.inert = !open;
+  if (getLoggedInUser()) toggle?.removeAttribute('aria-expanded');
+  else toggle?.setAttribute('aria-expanded', String(open));
+}
+
+// The panel's Log out and the own profile's both land here. The profile's is
+// the visible one: signed in, the account button never opens the panel.
+function logOut() {
+  doLogout();
+  setAuthPanelOpen(false);
+  updateAuthUI();
+  showToast('Logged out');
+  location.hash = 'feed';
 }
 
 function openSearch() {
@@ -516,6 +534,9 @@ async function handleGlobalClick(e) {
     }
     return;
   }
+
+  // Log out from the own profile
+  if (target.closest('[data-log-out]')) { logOut(); return; }
 
   // Copy link
   const copyLink = target.closest('[data-copy-link]');
@@ -811,6 +832,8 @@ function closeAllOverflowMenus() {
 const NAV_VIEWS = ['feed', 'explore', 'stack'];
 
 function handleKeyboard(e) {
+  // Escape from a sign-in field closes the panel and hands focus back.
+  if (e.key === 'Escape' && $('authPanel')?.contains(e.target)) { setAuthPanelOpen(false); return; }
   const tag = e.target.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
@@ -836,8 +859,7 @@ function handleKeyboard(e) {
     if (document.querySelector('[data-tag-editor]')) { document.querySelector('[data-tag-editor]')?.remove(); return; }
     if (!$('searchOverlay')?.hidden) { closeSearch(); return; }
     if (!$('recommendOverlay')?.hidden) { $('recommendOverlay').hidden = true; return; }
-    const authPanel = $('authPanel');
-    if (authPanel?.classList.contains('open')) { authPanel.classList.remove('open'); return; }
+    if ($('authPanel')?.classList.contains('open')) { setAuthPanelOpen(false); return; }
     closeAllOverflowMenus();
   }
 }

@@ -90,7 +90,10 @@ Channel data lives in `data-*` attributes. Always use `escAttr()` (JSON-safe) no
 Never use `maxlength` on hidden inputs or inputs that receive long programmatic values (base64, URLs). Use validation in JS instead.
 
 ### CSS `display` vs `hidden` attribute
-Overlays use `display: flex` which overrides `hidden`. Every overlay needs `[hidden] { display: none; }`.
+Overlays use `display: flex` which overrides `hidden`. Every overlay needs `[hidden] { display: none; }`. `#authUser` and `.rec-badge` missed it until 2026-11-14: a red dot sat on the account button for every visitor and Log out showed in the signed-out panel.
+
+### The sign-in panel is inert while closed
+It collapses with `max-height`, so its fields stayed in the tab order. Route every open and close through `setAuthPanelOpen()` in `events.js`, which sets `inert`, `aria-expanded` (removed while signed in, when the account button opens the profile) and returns focus to the account button. Escape closes it, from inside its fields too (`handleKeyboard`).
 
 ### YouTube API cost
 Search = 100 units (regardless of maxResults). Channel detail = 1 unit. Frontend checks Convex first via `getByYoutubeId` before calling the Worker.
@@ -110,7 +113,7 @@ Hash-based: `#feed`, `#explore`, `#stack`, `#user=username`, `#collection=id`
 `.overflow-menu-wrapper` with `[data-overflow-toggle]` trigger. Click toggles `.open`. Document click closes all.
 
 ### Profile
-Own profile (`#user=myname`) shows Settings section: Display Name, Bio, Public Profile toggle, Current Password. Save calls `updateProfile()`, which the server refuses without the right password. Other users see Follow button + match score.
+Own profile (`#user=myname`) shows Settings section: Display Name, Bio, Public Profile toggle, Current Password. Save calls `updateProfile()`, which the server refuses without the right password. Other users see Follow button + match score. The own profile also carries Log out (`[data-log-out]`), the only one on screen: signed in, the account button opens the profile, never the panel.
 
 ### Explore
 "Members" directory sorted by channel count. User cards are `<a>` links. Search filters by username and display name.

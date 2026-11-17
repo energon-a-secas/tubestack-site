@@ -78,7 +78,7 @@ function renderFeed() {
     const unseen = state.recommendations.filter(r => !r.seen);
     if (unseen.length > 0) {
       html += `<section class="feed-section">
-        <h2 class="section-title">Recommendations <span class="count-badge">${unseen.length}</span></h2>
+        <h2 class="section-title">Recommendations</h2>
         <div class="channel-grid">${unseen.map(r => renderRecCard(r)).join('')}</div>
       </section>`;
     }
@@ -104,7 +104,6 @@ function renderFeed() {
       return (b.engineerCount || 0) - (a.engineerCount || 0);
     });
     html += `<section class="feed-section">
-      <div class="section-label section-label--trending">Popular</div>
       <h2 class="section-title">Trending This Week</h2>
       <div class="channel-grid">${sorted.map(ch => renderChannelCard(ch, null, ch.engineerCount)).join('')}</div>
     </section>`;
@@ -122,11 +121,10 @@ function renderFeed() {
       return 0;
     });
     html += `<section class="feed-section">
-      <div class="section-label section-label--recent">New</div>
       <div class="section-header-row">
         <h2 class="section-title" style="margin-bottom: 0;">Recently Added</h2>
         <div class="sort-controls">
-          <label class="sort-label">Sort:</label>
+          <label class="sort-label" for="sortBy">Sort:</label>
           <select id="sortBy" class="sort-select">
             <option value="date" ${state.sortBy === 'date' ? 'selected' : ''}>Added Date</option>
             <option value="subscribers" ${state.sortBy === 'subscribers' ? 'selected' : ''}>Subscribers</option>
@@ -161,7 +159,7 @@ function renderFeed() {
 // ── Explore view ─────────────────────────────────────────────
 function renderExplore() {
   let html = `<div class="explore-header">
-    <h2 class="section-title">Members <span class="count-badge">${state.publicUsers.length}</span></h2>
+    <h2 class="section-title">Members</h2>
     <input type="text" class="search-input" id="exploreSearch" placeholder="Search members...">
   </div>`;
 
@@ -186,7 +184,7 @@ function renderStack() {
   }
 
   let html = `<div class="stack-header">
-    <h2 class="section-title">My Stack <span class="count-badge">${state.myChannels.length}</span></h2>
+    <h2 class="section-title">My Stack</h2>
     <div class="stack-actions">
       <button class="btn btn-accent" id="openSearchBtn">+ Add Channel</button>
       <button class="btn btn-outline" id="createCollectionBtn">New Collection</button>
@@ -217,7 +215,7 @@ function renderStack() {
       <div class="section-header-row">
         <h3 class="subsection-title" style="margin-bottom: 0;">Channels</h3>
         <div class="sort-controls">
-          <label class="sort-label">Sort:</label>
+          <label class="sort-label" for="sortBy">Sort:</label>
           <select id="sortBy" class="sort-select">
             <option value="date" ${state.sortBy === 'date' ? 'selected' : ''}>Added Date</option>
             <option value="subscribers" ${state.sortBy === 'subscribers' ? 'selected' : ''}>Subscribers</option>
@@ -271,6 +269,7 @@ function renderUserProfile() {
     <div class="profile-actions">
       ${!isMe && me ? `<button class="btn btn-outline" data-follow-user="${escHtml(p.username)}" data-follow-id="${p.id}" style="width:100%;">Follow</button>` : ''}
       ${isMe ? `<button class="btn btn-sm btn-ghost" data-copy-link="${escHtml(shareUrl)}" title="Copy profile link">Share Profile</button>` : ''}
+      ${isMe ? '<button type="button" class="btn btn-sm btn-ghost" data-log-out>Log out</button>' : ''}
       <span class="match-badge-v2" id="profileMatch"></span>
     </div>
   </div>`;
